@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
@@ -41,10 +42,7 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         private readonly CollectionDeepObserver<ISeries> _seriesObserver;
         private readonly CollectionDeepObserver<IAxis> _xObserver;
         private readonly CollectionDeepObserver<IAxis> _yObserver;
-        private readonly ActionThrottler _panningThrottler;
-        private System.Windows.Point? _previous;
-        private System.Windows.Point? _current;
-        private bool _isPanning = false;
+        private readonly CollectionDeepObserver<Section<SkiaSharpDrawingContext>> _sectionsObserver;
 
         #endregion
 
@@ -61,17 +59,18 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             _seriesObserver = new CollectionDeepObserver<ISeries>(OnDeepCollectionChanged, OnDeepCollectionPropertyChanged, true);
             _xObserver = new CollectionDeepObserver<IAxis>(OnDeepCollectionChanged, OnDeepCollectionPropertyChanged, true);
             _yObserver = new CollectionDeepObserver<IAxis>(OnDeepCollectionChanged, OnDeepCollectionPropertyChanged, true);
+            _sectionsObserver = new CollectionDeepObserver<Section<SkiaSharpDrawingContext>>(
+                OnDeepCollectionChanged, OnDeepCollectionPropertyChanged, true);
 
-            XAxes = new List<IAxis>() { new Axis() };
-            YAxes = new List<IAxis>() { new Axis() };
-            Series = new ObservableCollection<ISeries>();
+            SetCurrentValue(XAxesProperty, new ObservableCollection<IAxis>() { LiveCharts.CurrentSettings.AxisProvider() });
+            SetCurrentValue(YAxesProperty, new ObservableCollection<IAxis>() { LiveCharts.CurrentSettings.AxisProvider() });
+            SetCurrentValue(SeriesProperty, new ObservableCollection<ISeries>());
+            SetCurrentValue(SectionsProperty, new ObservableCollection<Section<SkiaSharpDrawingContext>>());
 
             MouseWheel += OnMouseWheel;
             MouseDown += OnMouseDown;
             MouseMove += OnMouseMove;
             MouseUp += OnMouseUp;
-
-            _panningThrottler = new ActionThrottler(DoPan, TimeSpan.FromMilliseconds(30));
         }
 
         #region dependency properties
@@ -90,6 +89,10 @@ namespace LiveChartsCore.SkiaSharpView.WPF
                         seriesObserver.Initialize((IEnumerable<ISeries>)args.NewValue);
                         if (chart.core == null) return;
                         Application.Current.Dispatcher.Invoke(() => chart.core.Update());
+                    },
+                    (DependencyObject o, object value) =>
+                    {
+                        return value is IEnumerable<ISeries> ? value : new ObservableCollection<ISeries>();
                     }));
 
         /// <summary>
@@ -106,6 +109,10 @@ namespace LiveChartsCore.SkiaSharpView.WPF
                         observer.Initialize((IEnumerable<IAxis>)args.NewValue);
                         if (chart.core == null) return;
                         Application.Current.Dispatcher.Invoke(() => chart.core.Update());
+                    },
+                    (DependencyObject o, object value) =>
+                    {
+                        return value is IEnumerable<IAxis> ? value : new List<IAxis>() { LiveCharts.CurrentSettings.AxisProvider() };
                     }));
 
         /// <summary>
@@ -122,7 +129,40 @@ namespace LiveChartsCore.SkiaSharpView.WPF
                         observer.Initialize((IEnumerable<IAxis>)args.NewValue);
                         if (chart.core == null) return;
                         Application.Current.Dispatcher.Invoke(() => chart.core.Update());
+                    },
+                    (DependencyObject o, object value) =>
+                    {
+                        return value is IEnumerable<IAxis> ? value : new List<IAxis>() { LiveCharts.CurrentSettings.AxisProvider() };
                     }));
+
+        /// <summary>
+        /// The sections property
+        /// </summary>
+        public static readonly DependencyProperty SectionsProperty =
+            DependencyProperty.Register(
+                nameof(Sections), typeof(IEnumerable<Section<SkiaSharpDrawingContext>>), typeof(CartesianChart), new PropertyMetadata(null,
+                    (DependencyObject o, DependencyPropertyChangedEventArgs args) =>
+                    {
+                        var chart = (CartesianChart)o;
+                        var observer = chart._sectionsObserver;
+                        observer.Dispose((IEnumerable<Section<SkiaSharpDrawingContext>>)args.OldValue);
+                        observer.Initialize((IEnumerable<Section<SkiaSharpDrawingContext>>)args.NewValue);
+                        if (chart.core == null) return;
+                        Application.Current.Dispatcher.Invoke(() => chart.core.Update());
+                    },
+                    (DependencyObject o, object value) =>
+                    {
+                        return value is IEnumerable<Section<SkiaSharpDrawingContext>>
+                        ? value
+                        : new List<Section<SkiaSharpDrawingContext>>();
+                    }));
+
+        /// <summary>
+        /// The zoom mode property
+        /// </summary>
+        public static readonly DependencyProperty DrawMarginFrameProperty =
+            DependencyProperty.Register(
+                nameof(DrawMarginFrame), typeof(DrawMarginFrame<SkiaSharpDrawingContext>), typeof(CartesianChart), new PropertyMetadata(null));
 
         /// <summary>
         /// The zoom mode property
@@ -139,6 +179,14 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             DependencyProperty.Register(
                 nameof(ZoomingSpeed), typeof(double), typeof(CartesianChart),
                 new PropertyMetadata(LiveCharts.CurrentSettings.DefaultZoomSpeed));
+
+        /// <summary>
+        /// The tool tip finding strategy property
+        /// </summary>
+        public static readonly DependencyProperty TooltipFindingStrategyProperty =
+            DependencyProperty.Register(
+                nameof(TooltipFindingStrategy), typeof(TooltipFindingStrategy), typeof(Chart),
+                new PropertyMetadata(LiveCharts.CurrentSettings.DefaultTooltipFindingStrategy, OnDependencyPropertyChanged));
 
         #endregion
 
@@ -168,6 +216,20 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             set => SetValue(YAxesProperty, value);
         }
 
+        /// <inheritdoc cref="ICartesianChartView{TDrawingContext}.Sections" />
+        public IEnumerable<Section<SkiaSharpDrawingContext>> Sections
+        {
+            get => (IEnumerable<Section<SkiaSharpDrawingContext>>)GetValue(SectionsProperty);
+            set => SetValue(SectionsProperty, value);
+        }
+
+        /// <inheritdoc cref="ICartesianChartView{TDrawingContext}.DrawMarginFrame" />
+        public DrawMarginFrame<SkiaSharpDrawingContext> DrawMarginFrame
+        {
+            get => (DrawMarginFrame<SkiaSharpDrawingContext>)GetValue(DrawMarginFrameProperty);
+            set => SetValue(DrawMarginFrameProperty, value);
+        }
+
         /// <inheritdoc cref="ICartesianChartView{TDrawingContext}.ZoomMode" />
         public ZoomAndPanMode ZoomMode
         {
@@ -175,11 +237,31 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             set => SetValue(ZoomModeProperty, value);
         }
 
+        ZoomAndPanMode ICartesianChartView<SkiaSharpDrawingContext>.ZoomMode
+        {
+            get => ZoomMode;
+            set => SetValueOrCurrentValue(ZoomModeProperty, value);
+        }
+
         /// <inheritdoc cref="ICartesianChartView{TDrawingContext}.ZoomingSpeed" />
         public double ZoomingSpeed
         {
             get => (double)GetValue(ZoomingSpeedProperty);
             set => SetValue(ZoomingSpeedProperty, value);
+        }
+
+        double ICartesianChartView<SkiaSharpDrawingContext>.ZoomingSpeed
+        {
+            get => ZoomingSpeed;
+            set => SetValueOrCurrentValue(ZoomingSpeedProperty, value);
+        }
+
+
+        /// <inheritdoc cref="ICartesianChartView{TDrawingContext}.TooltipFindingStrategy" />
+        public TooltipFindingStrategy TooltipFindingStrategy
+        {
+            get => (TooltipFindingStrategy)GetValue(TooltipFindingStrategyProperty);
+            set => SetValue(TooltipFindingStrategyProperty, value);
         }
 
         #endregion
@@ -228,39 +310,21 @@ namespace LiveChartsCore.SkiaSharpView.WPF
 
         private void OnMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            _isPanning = true;
-            _previous = e.GetPosition(this);
             _ = CaptureMouse();
+            var p = e.GetPosition(this);
+            core?.InvokePointerDown(new PointF((float)p.X, (float)p.Y));
         }
 
         private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            if (!_isPanning || _previous == null) return;
-
-            _current = e.GetPosition(this);
-            _panningThrottler.Call();
-        }
-
-        private void DoPan()
-        {
-            if (core == null) throw new Exception("core not found");
-            if (_previous == null || _current == null) return;
-
-            var c = (CartesianChart<SkiaSharpDrawingContext>)core;
-
-            c.Pan(
-                new PointF(
-                (float)(_current.Value.X - _previous.Value.X),
-                (float)(_current.Value.Y - _previous.Value.Y)));
-
-            _previous = new System.Windows.Point(_current.Value.X, _current.Value.Y);
+            var p = e.GetPosition(this);
+            core?.InvokePointerMove(new PointF((float)p.X, (float)p.Y));
         }
 
         private void OnMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (!_isPanning) return;
-            _isPanning = false;
-            _previous = null;
+            var p = e.GetPosition(this);
+            core?.InvokePointerUp(new PointF((float)p.X, (float)p.Y));
             ReleaseMouseCapture();
         }
     }

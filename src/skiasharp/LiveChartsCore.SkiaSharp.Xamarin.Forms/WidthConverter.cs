@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
 using System.Globalization;
@@ -49,8 +49,8 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// </remarks>
         public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            var v = (IDrawableSeries<SkiaSharpDrawingContext>)value;
-            return v == null ? null : v.DefaultPaintContext.Width / DeviceDisplay.MainDisplayInfo.Density;
+            var v = (IChartSeries<SkiaSharpDrawingContext>)value;
+            return v == null ? null : v.CanvasSchedule.Width / DeviceDisplay.MainDisplayInfo.Density;
         }
 
         /// <summary>

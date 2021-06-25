@@ -60,13 +60,13 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         public Align HorizontalAlign { get; set; } = Align.Middle;
 
         /// <inheritdoc cref="ILabelGeometry{TDrawingContext}.Text" />
-        public string Text { get; set; }
+        public string Text { get; set; } = string.Empty;
 
         /// <inheritdoc cref="ILabelGeometry{TDrawingContext}.TextSize" />
         public float TextSize { get => _textSizeProperty.GetMovement(this); set => _textSizeProperty.SetMovement(value, this); }
 
         /// <inheritdoc cref="ILabelGeometry{TDrawingContext}.Padding" />
-        public Padding Padding { get; set; }
+        public Padding Padding { get; set; } = new Padding();
 
         /// <inheritdoc cref="Geometry.OnDraw(SkiaSharpDrawingContext, SKPaint)" />
         public override void OnDraw(SkiaSharpDrawingContext context, SKPaint paint)
@@ -117,7 +117,7 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
             {
                 case Align.Start: dx = 0; break;
                 case Align.Middle: dx = -size.Width * 0.5f; break;
-                case Align.End: dx = size.Width; break;
+                case Align.End: dx = -size.Width; break;
                 default:
                     break;
             }

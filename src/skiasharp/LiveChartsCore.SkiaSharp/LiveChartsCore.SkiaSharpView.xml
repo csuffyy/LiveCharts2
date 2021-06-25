@@ -155,17 +155,17 @@
             The opacity property
             </summary>
         </member>
-        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.Geometry.x">
+        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.Geometry.xProperty">
             <summary>
             The x
             </summary>
         </member>
-        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.Geometry.y">
+        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.Geometry.yProperty">
             <summary>
             The y
             </summary>
         </member>
-        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.Geometry.rotation">
+        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.Geometry.rotationProperty">
             <summary>
             The rotation
             </summary>
@@ -381,7 +381,7 @@
         </member>
         <member name="T:LiveChartsCore.SkiaSharpView.Drawing.Geometries.RoundedRectangleGeometry">
             <summary>
-            Defines a ropunded rectangle geometry.
+            Defines a rounded rectangle geometry.
             </summary>
             <seealso cref="T:LiveChartsCore.SkiaSharpView.Drawing.Geometries.SizedGeometry" />
         </member>
@@ -481,12 +481,12 @@
         <member name="T:LiveChartsCore.SkiaSharpView.Drawing.Geometries.SizedGeometry">
             <inheritdoc cref="T:LiveChartsCore.Drawing.ISizedGeometry`1" />
         </member>
-        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.SizedGeometry.width">
+        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.SizedGeometry.widthProperty">
             <summary>
             The width
             </summary>
         </member>
-        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.SizedGeometry.height">
+        <member name="F:LiveChartsCore.SkiaSharpView.Drawing.Geometries.SizedGeometry.heightProperty">
             <summary>
             The height
             </summary>
@@ -721,7 +721,7 @@
         </member>
         <member name="M:LiveChartsCore.SkiaSharpView.LiveChartsSkiaSharp.AsSKColor(System.Drawing.Color,System.Nullable{System.Byte})">
             <summary>
-            Converts a <see cref="T:System.Drawing.Color"/> to an <see cref="T:SkiaSharp.SKColor"/> instance.
+            Converts a <see cref="T:System.Drawing.Color"/> to a <see cref="T:SkiaSharp.SKColor"/> instance.
             </summary>
             <param name="color">The color.</param>
             <param name="alphaOverrides">The alpha overrides.</param>
@@ -907,6 +907,14 @@
             </summary>
             <value>
             The clip rectangle.
+            </value>
+        </member>
+        <member name="P:LiveChartsCore.SkiaSharpView.Painting.PaintTask.IsPaused">
+            <summary>
+            Gets or sets a value indicating whether this instance is paused.
+            </summary>
+            <value>
+            <c>true</c> if this instance is paused; otherwise, <c>false</c>.
             </value>
         </member>
         <member name="M:LiveChartsCore.SkiaSharpView.Painting.PaintTask.InitializeTask(LiveChartsCore.SkiaSharpView.Drawing.SkiaSharpDrawingContext)">

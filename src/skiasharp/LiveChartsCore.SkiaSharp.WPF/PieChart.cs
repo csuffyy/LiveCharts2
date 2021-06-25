@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
 using System.Collections.Generic;
@@ -58,7 +59,7 @@ namespace LiveChartsCore.SkiaSharpView.WPF
                     Application.Current.Dispatcher.Invoke(() => core.Update());
                 });
 
-            Series = new ObservableCollection<ISeries>();
+            SetCurrentValue(SeriesProperty, new ObservableCollection<ISeries>());
         }
 
         /// <summary>
@@ -75,7 +76,32 @@ namespace LiveChartsCore.SkiaSharpView.WPF
                         seriesObserver.Initialize((IEnumerable<ISeries>)args.NewValue);
                         if (chart.core == null) return;
                         Application.Current.Dispatcher.Invoke(() => chart.core.Update());
+                    },
+                    (DependencyObject o, object value) =>
+                    {
+                        return value is IEnumerable<ISeries> ? value : new ObservableCollection<ISeries>();
                     }));
+
+        /// <summary>
+        /// The initial rotation property
+        /// </summary>
+        public static readonly DependencyProperty InitialRotationProperty =
+            DependencyProperty.Register(
+                nameof(InitialRotation), typeof(double), typeof(Chart), new PropertyMetadata(0d, OnDependencyPropertyChanged));
+
+        /// <summary>
+        /// The maximum angle property
+        /// </summary>
+        public static readonly DependencyProperty MaxAngleProperty =
+            DependencyProperty.Register(
+                nameof(MaxAngle), typeof(double), typeof(Chart), new PropertyMetadata(360d, OnDependencyPropertyChanged));
+
+        /// <summary>
+        /// The total property
+        /// </summary>
+        public static readonly DependencyProperty TotalProperty =
+            DependencyProperty.Register(
+                nameof(Total), typeof(double?), typeof(Chart), new PropertyMetadata(null, OnDependencyPropertyChanged));
 
         PieChart<SkiaSharpDrawingContext> IPieChartView<SkiaSharpDrawingContext>.Core => core == null ? throw new Exception("core not found") : (PieChart<SkiaSharpDrawingContext>)core;
 
@@ -84,6 +110,27 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         {
             get => (IEnumerable<ISeries>)GetValue(SeriesProperty);
             set => SetValue(SeriesProperty, value);
+        }
+
+        /// <inheritdoc cref="IPieChartView{TDrawingContext}.InitialRotation" />
+        public double InitialRotation
+        {
+            get => (double)GetValue(InitialRotationProperty);
+            set => SetValue(InitialRotationProperty, value);
+        }
+
+        /// <inheritdoc cref="IPieChartView{TDrawingContext}.MaxAngle" />
+        public double MaxAngle
+        {
+            get => (double)GetValue(MaxAngleProperty);
+            set => SetValue(MaxAngleProperty, value);
+        }
+
+        /// <inheritdoc cref="IPieChartView{TDrawingContext}.Total" />
+        public double? Total
+        {
+            get => (double?)GetValue(TotalProperty);
+            set => SetValue(TotalProperty, value);
         }
 
         /// <summary>

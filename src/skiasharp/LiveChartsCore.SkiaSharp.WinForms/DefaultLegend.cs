@@ -1,4 +1,4 @@
-﻿using LiveChartsCore.Kernel;
+﻿using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System.Collections.Generic;
@@ -68,7 +68,7 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
             BackColor = wfChart.LegendBackColor;
         }
 
-        private void DrawAndMesure(IEnumerable<IDrawableSeries<SkiaSharpDrawingContext>> series, Chart chart)
+        private void DrawAndMesure(IEnumerable<IChartSeries<SkiaSharpDrawingContext>> series, Chart chart)
         {
             SuspendLayout();
             Controls.Clear();
@@ -81,6 +81,7 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
                 if (Orientation == LegendOrientation.Vertical)
                 {
                     var parent = new Panel();
+                    parent.BackColor = chart.LegendBackColor;
                     Controls.Add(parent);
                     using var g = CreateGraphics();
                     foreach (var s in series)
@@ -94,18 +95,20 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
                         p.Controls.Add(new MotionCanvas
                         {
                             Location = new Point(6, 0),
-                            PaintTasks = s.DefaultPaintContext.PaintTasks,
-                            Width = (int)s.DefaultPaintContext.Width,
-                            Height = (int)s.DefaultPaintContext.Height
+                            PaintTasks = s.CanvasSchedule.PaintSchedules,
+                            Width = (int)s.CanvasSchedule.Width,
+                            Height = (int)s.CanvasSchedule.Height
                         });
                         p.Controls.Add(new Label
                         {
                             Text = s.Name,
                             Font = chart.LegendFont,
-                            Location = new Point(6 + (int)s.DefaultPaintContext.Width + 6, 0)
+                            ForeColor = chart.LegendTextColor,
+                            Location = new Point(6 + (int)s.CanvasSchedule.Width + 6, 0),
+                            AutoSize = true
                         });
 
-                        var thisW = size.Width + 36 + (int)s.DefaultPaintContext.Width;
+                        var thisW = size.Width + 36 + (int)s.CanvasSchedule.Width;
                         p.Width = (int)thisW + 6;
                         p.Height = (int)size.Height + 6;
                         h += size.Height + 6;
@@ -133,18 +136,18 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
                         p.Controls.Add(new MotionCanvas
                         {
                             Location = new Point(0, 6),
-                            PaintTasks = s.DefaultPaintContext.PaintTasks,
-                            Width = (int)s.DefaultPaintContext.Width,
-                            Height = (int)s.DefaultPaintContext.Height
+                            //PaintTasks = s.DefaultPaintContext.PaintTasks,
+                            Width = (int)s.CanvasSchedule.Width,
+                            Height = (int)s.CanvasSchedule.Height
                         });
                         p.Controls.Add(new Label
                         {
                             Text = s.Name,
                             Font = chart.LegendFont,
-                            Location = new Point(6 + (int)s.DefaultPaintContext.Width + 6, 6)
+                            Location = new Point(6 + (int)s.CanvasSchedule.Width + 6, 6)
                         });
 
-                        var thisW = size.Width + 36 + (int)s.DefaultPaintContext.Width;
+                        var thisW = size.Width + 36 + (int)s.CanvasSchedule.Width;
                         p.Width = (int)thisW;
                         p.Height = (int)size.Height + 6 + 6;
                         h = size.Height + 6;

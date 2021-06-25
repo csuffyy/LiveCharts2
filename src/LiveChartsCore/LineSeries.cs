@@ -27,6 +27,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Drawing;
+using LiveChartsCore.Kernel.Drawing;
+using LiveChartsCore.Kernel.Sketches;
+using LiveChartsCore.Kernel.Data;
 
 namespace LiveChartsCore
 {
@@ -34,7 +37,7 @@ namespace LiveChartsCore
     /// Defines the data to plot as a line.
     /// </summary>
     public class LineSeries<TModel, TVisual, TLabel, TDrawingContext, TPathGeometry, TLineSegment, TBezierSegment, TMoveToCommand, TPathArgs>
-        : CartesianSeries<TModel, LineBezierVisualPoint<TDrawingContext, TVisual, TBezierSegment, TPathArgs>, TLabel, TDrawingContext>, ILineSeries<TDrawingContext>
+        : StrokeAndFillCartesianSeries<TModel, LineBezierVisualPoint<TDrawingContext, TVisual, TBezierSegment, TPathArgs>, TLabel, TDrawingContext>, ILineSeries<TDrawingContext>
         where TPathGeometry : IPathGeometry<TDrawingContext, TPathArgs>, new()
         where TLineSegment : ILinePathSegment<TPathArgs>, new()
         where TBezierSegment : IBezierSegment<TPathArgs>, new()
@@ -48,16 +51,19 @@ namespace LiveChartsCore
         private float _lineSmoothness = 0.65f;
         private float _geometrySize = 14f;
         private bool _enableNullSplitting = true;
-        private IDrawableTask<TDrawingContext>? _geometryFill;
-        private IDrawableTask<TDrawingContext>? _geometryStroke;
+        private IPaintTask<TDrawingContext>? _geometryFill;
+        private IPaintTask<TDrawingContext>? _geometryStroke;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LineSeries{TModel, TVisual, TLabel, TDrawingContext, TPathGeometry, TLineSegment, TBezierSegment, TMoveToCommand, TPathArgs}"/> class.
         /// </summary>
         /// <param name="isStacked">if set to <c>true</c> [is stacked].</param>
         public LineSeries(bool isStacked = false)
-            : base(SeriesProperties.Line | SeriesProperties.VerticalOrientation | (isStacked ? SeriesProperties.Stacked : 0))
+            : base(
+                  SeriesProperties.Line | SeriesProperties.PrimaryAxisVerticalOrientation |
+                  (isStacked ? SeriesProperties.Stacked : 0) | SeriesProperties.Sketch | SeriesProperties.PrefersXStrategyTooltips)
         {
+            DataPadding = new PointF(0.5f, 1f);
             HoverState = LiveCharts.LineSeriesHoverKey;
         }
 
@@ -82,59 +88,43 @@ namespace LiveChartsCore
         public bool EnableNullSplitting { get => _enableNullSplitting; set { _enableNullSplitting = value; OnPropertyChanged(); } }
 
         /// <inheritdoc cref="ILineSeries{TDrawingContext}.GeometryFill"/>
-        public IDrawableTask<TDrawingContext>? GeometryFill
+        public IPaintTask<TDrawingContext>? GeometryFill
         {
             get => _geometryFill;
-            set
-            {
-                if (_geometryFill != null) deletingTasks.Add(_geometryFill);
-                _geometryFill = value;
-                if (_geometryFill != null)
-                {
-                    _geometryFill.IsStroke = false;
-                    _geometryFill.StrokeThickness = 0;
-                }
-
-                OnPaintContextChanged();
-                OnPropertyChanged();
-            }
+            set => SetPaintProperty(ref _geometryFill, value);
         }
 
         /// <inheritdoc cref="ILineSeries{TDrawingContext}.GeometrySize"/>
-        public IDrawableTask<TDrawingContext>? GeometryStroke
+        public IPaintTask<TDrawingContext>? GeometryStroke
         {
             get => _geometryStroke;
-            set
-            {
-                if (_geometryStroke != null) deletingTasks.Add(_geometryStroke);
-                _geometryStroke = value;
-                if (_geometryStroke != null)
-                {
-                    _geometryStroke.IsStroke = true;
-                }
-
-                OnPaintContextChanged();
-                OnPropertyChanged();
-            }
+            set => SetPaintProperty(ref _geometryStroke, value, true);
         }
 
-        /// <inheritdoc cref="ICartesianSeries{TDrawingContext}.Measure(CartesianChart{TDrawingContext}, IAxis{TDrawingContext}, IAxis{TDrawingContext})" />
-        public override void Measure(
-            CartesianChart<TDrawingContext> chart, IAxis<TDrawingContext> xAxis, IAxis<TDrawingContext> yAxis)
+        /// <inheritdoc cref="ChartElement{TDrawingContext}.Measure(Chart{TDrawingContext})"/>
+        public override void Measure(Chart<TDrawingContext> chart)
         {
-            var drawLocation = chart.DrawMaringLocation;
-            var drawMarginSize = chart.DrawMarginSize;
-            var secondaryScale = new Scaler(drawLocation, drawMarginSize, xAxis);
-            var primaryScale = new Scaler(drawLocation, drawMarginSize, yAxis);
+            var cartesianChart = (CartesianChart<TDrawingContext>)chart;
+            var primaryAxis = cartesianChart.YAxes[ScalesYAt];
+            var secondaryAxis = cartesianChart.XAxes[ScalesXAt];
+
+            var drawLocation = cartesianChart.DrawMarginLocation;
+            var drawMarginSize = cartesianChart.DrawMarginSize;
+            var secondaryScale = new Scaler(drawLocation, drawMarginSize, secondaryAxis);
+            var primaryScale = new Scaler(drawLocation, drawMarginSize, primaryAxis);
+            var previousPrimaryScale =
+                primaryAxis.PreviousDataBounds == null ? null : new Scaler(drawLocation, drawMarginSize, primaryAxis, true);
+            var previousSecondaryScale =
+                secondaryAxis.PreviousDataBounds == null ? null : new Scaler(drawLocation, drawMarginSize, secondaryAxis, true);
 
             var gs = _geometrySize;
             var hgs = gs / 2f;
             var sw = Stroke?.StrokeThickness ?? 0;
             var p = primaryScale.ToPixels(pivot);
 
-            var chartAnimation = new Animation(chart.EasingFunction, chart.AnimationsSpeed);
+            var chartAnimation = new Animation(EasingFunction ?? cartesianChart.EasingFunction, AnimationsSpeed ?? cartesianChart.AnimationsSpeed);
 
-            var fetched = Fetch(chart);
+            var fetched = Fetch(cartesianChart);
             if (fetched is not ChartPoint[] points) points = fetched.ToArray();
 
             var segments = _enableNullSplitting
@@ -142,7 +132,7 @@ namespace LiveChartsCore
                 : new ChartPoint[][] { points };
 
             var stacker = (SeriesProperties & SeriesProperties.Stacked) == SeriesProperties.Stacked
-                ? chart.SeriesContext.GetStackPosition(this, GetStackGroup())
+                ? cartesianChart.SeriesContext.GetStackPosition(this, GetStackGroup())
                 : null;
 
             var actualZIndex = ZIndex == 0 ? ((ISeries)this).SeriesId : ZIndex;
@@ -161,6 +151,9 @@ namespace LiveChartsCore
 
             var segmentI = 0;
             var toDeletePoints = new HashSet<ChartPoint>(everFetched);
+
+            foreach (var item in _strokePathHelperContainer) item.Path.ClearCommands();
+            foreach (var item in _fillPathHelperContainer) item.Path.ClearCommands();
 
             foreach (var segment in segments)
             {
@@ -186,20 +179,18 @@ namespace LiveChartsCore
                 if (Fill != null)
                 {
                     wasFillInitialized = fillPathHelper.Initialize(SetDefaultPathTransitions, chartAnimation);
-                    Fill.AddGeometyToPaintTask(fillPathHelper.Path);
-                    chart.Canvas.AddDrawableTask(Fill);
+                    Fill.AddGeometryToPaintTask(cartesianChart.Canvas, fillPathHelper.Path);
+                    cartesianChart.Canvas.AddDrawableTask(Fill);
                     Fill.ZIndex = actualZIndex + 0.1;
-                    Fill.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
-                    fillPathHelper.Path.ClearCommands();
+                    Fill.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
                 }
                 if (Stroke != null)
                 {
                     wasStrokeInitialized = strokePathHelper.Initialize(SetDefaultPathTransitions, chartAnimation);
-                    Stroke.AddGeometyToPaintTask(strokePathHelper.Path);
-                    chart.Canvas.AddDrawableTask(Stroke);
+                    Stroke.AddGeometryToPaintTask(cartesianChart.Canvas, strokePathHelper.Path);
+                    cartesianChart.Canvas.AddDrawableTask(Stroke);
                     Stroke.ZIndex = actualZIndex + 0.2;
-                    Stroke.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
-                    strokePathHelper.Path.ClearCommands();
+                    Stroke.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
                 }
 
                 foreach (var data in GetSpline(segment, secondaryScale, primaryScale, stacker))
@@ -221,27 +212,55 @@ namespace LiveChartsCore
 
                         visual = v;
 
-                        v.Geometry.X = x - hgs;
-                        v.Geometry.Y = p - hgs;
+                        var pg = p;
+                        var xg = x - hgs;
+                        var yg = p - hgs;
+
+                        var x0b = data.X0;
+                        var x1b = data.X1;
+                        var x2b = data.X2;
+                        var y0b = p - hgs;
+                        var y1b = p - hgs;
+                        var y2b = p - hgs;
+
+                        if (previousSecondaryScale != null && previousPrimaryScale != null)
+                        {
+                            pg = previousPrimaryScale.ToPixels(pivot);
+                            xg = previousSecondaryScale.ToPixels(data.TargetPoint.SecondaryValue) - hgs;
+                            yg = previousPrimaryScale.ToPixels(data.TargetPoint.PrimaryValue + s) - hgs;
+
+                            if (data.OriginalData == null) throw new Exception("Original data not found");
+
+                            x0b = previousSecondaryScale.ToPixels(data.OriginalData.X0);
+                            x1b = previousSecondaryScale.ToPixels(data.OriginalData.X1);
+                            x2b = previousSecondaryScale.ToPixels(data.OriginalData.X2);
+                            y0b = previousPrimaryScale.ToPixels(data.OriginalData.Y0); //chart.IsZoomingOrPanning ? previousPrimaryScale.ToPixels(data.OriginalData.Y0) : pg - hgs;
+                            y1b = previousPrimaryScale.ToPixels(data.OriginalData.Y1); //chart.IsZoomingOrPanning ? previousPrimaryScale.ToPixels(data.OriginalData.Y1) : pg - hgs;
+                            y2b = previousPrimaryScale.ToPixels(data.OriginalData.Y2); //chart.IsZoomingOrPanning ? previousPrimaryScale.ToPixels(data.OriginalData.Y2) : pg - hgs;
+                        }
+
+                        v.Geometry.X = xg;
+                        v.Geometry.Y = yg;
                         v.Geometry.Width = gs;
                         v.Geometry.Height = gs;
 
-                        v.Bezier.X0 = data.X0;
-                        v.Bezier.Y0 = p - hgs;
-                        v.Bezier.X1 = data.X1;
-                        v.Bezier.Y1 = p - hgs;
-                        v.Bezier.X2 = data.X2;
-                        v.Bezier.Y2 = p - hgs;
+                        v.Bezier.X0 = x0b;
+                        v.Bezier.Y0 = y0b;
+                        v.Bezier.X1 = x1b;
+                        v.Bezier.Y1 = y1b;
+                        v.Bezier.X2 = x2b;
+                        v.Bezier.Y2 = y2b;
 
                         data.TargetPoint.Context.Visual = v;
                         OnPointCreated(data.TargetPoint);
                         v.Geometry.CompleteAllTransitions();
                         v.Bezier.CompleteAllTransitions();
-                        _ = everFetched.Add(data.TargetPoint);
                     }
 
-                    if (GeometryFill != null) GeometryFill.AddGeometyToPaintTask(visual.Geometry);
-                    if (GeometryStroke != null) GeometryStroke.AddGeometyToPaintTask(visual.Geometry);
+                    _ = everFetched.Add(data.TargetPoint);
+
+                    if (GeometryFill != null) GeometryFill.AddGeometryToPaintTask(cartesianChart.Canvas, visual.Geometry);
+                    if (GeometryStroke != null) GeometryStroke.AddGeometryToPaintTask(cartesianChart.Canvas, visual.Geometry);
 
                     visual.Bezier.X0 = data.X0;
                     visual.Bezier.Y0 = data.Y0;
@@ -294,13 +313,29 @@ namespace LiveChartsCore
                     {
                         if (data.IsFirst)
                         {
-                            if (wasStrokeInitialized)
+                            if (wasStrokeInitialized || cartesianChart.IsZoomingOrPanning)
                             {
-                                strokePathHelper.StartPoint.X = data.X0;
-                                strokePathHelper.StartPoint.Y = p;
+                                if (cartesianChart.IsZoomingOrPanning && previousPrimaryScale != null && previousSecondaryScale != null)
+                                {
+                                    strokePathHelper.StartPoint.X = previousSecondaryScale.ToPixels(data.OriginalData?.X0 ?? 0);
+                                    strokePathHelper.StartPoint.Y = previousPrimaryScale.ToPixels(data.OriginalData?.Y0 ?? 0);
+                                }
+                                else
+                                {
+                                    strokePathHelper.StartPoint.X = data.X0;
+                                    strokePathHelper.StartPoint.Y = p;
+                                }
 
                                 strokePathHelper.StartPoint.CompleteTransitions(
-                                   nameof(fillPathHelper.StartPoint.Y), nameof(fillPathHelper.StartPoint.X));
+                                   nameof(strokePathHelper.StartPoint.Y), nameof(strokePathHelper.StartPoint.X));
+                            }
+
+                            if (!cartesianChart.IsFirstDraw && previousSecondaryScale != null && previousPrimaryScale != null)
+                            {
+                                strokePathHelper.StartPoint.X = previousSecondaryScale.ToPixels(data.OriginalData?.X0 ?? 0);
+                                strokePathHelper.StartPoint.Y = previousPrimaryScale.ToPixels(data.OriginalData?.Y0 ?? 0);
+                                strokePathHelper.StartPoint.CompleteTransitions(
+                                   nameof(strokePathHelper.StartPoint.Y), nameof(strokePathHelper.StartPoint.X));
                             }
 
                             strokePathHelper.StartPoint.X = data.X0;
@@ -315,13 +350,20 @@ namespace LiveChartsCore
                     visual.Geometry.Y = y - hgs;
                     visual.Geometry.Width = gs;
                     visual.Geometry.Height = gs;
+                    visual.Geometry.RemoveOnCompleted = false;
 
-                    data.TargetPoint.Context.HoverArea = new RectangleHoverArea().SetDimensions(x - hgs, y - hgs + 2 * sw, gs, gs + 2 * sw);
+                    visual.FillPath = fillPathHelper.Path;
+                    visual.StrokePath = strokePathHelper.Path;
+
+                    var hags = gs < 8 ? 8 : gs;
+
+                    data.TargetPoint.Context.HoverArea = new RectangleHoverArea()
+                        .SetDimensions(x - hgs, y - hgs + 2 * sw, hags, hags + 2 * sw);
 
                     OnPointMeasured(data.TargetPoint);
                     _ = toDeletePoints.Remove(data.TargetPoint);
 
-                    if (DataLabelsDrawableTask != null)
+                    if (DataLabelsPaint != null)
                     {
                         var label = (TLabel?)data.TargetPoint.Context.Label;
 
@@ -330,21 +372,23 @@ namespace LiveChartsCore
                             var l = new TLabel { X = x - hgs, Y = p - hgs };
 
                             _ = l.TransitionateProperties(nameof(l.X), nameof(l.Y))
-                                .WithAnimation(a =>
-                                    a.WithDuration(chart.AnimationsSpeed)
-                                    .WithEasingFunction(chart.EasingFunction));
+                                .WithAnimation(animation =>
+                                    animation
+                                        .WithDuration(AnimationsSpeed ?? cartesianChart.AnimationsSpeed)
+                                        .WithEasingFunction(EasingFunction ?? cartesianChart.EasingFunction));
 
                             l.CompleteAllTransitions();
                             label = l;
                             data.TargetPoint.Context.Label = l;
-                            DataLabelsDrawableTask.AddGeometyToPaintTask(l);
                         }
 
-                        label.Text = DataLabelsFormatter(data.TargetPoint);
+                        DataLabelsPaint.AddGeometryToPaintTask(cartesianChart.Canvas, label);
+                        label.Text = DataLabelsFormatter(
+                            new TypedChartPoint<TModel, LineBezierVisualPoint<TDrawingContext, TVisual, TBezierSegment, TPathArgs>, TLabel, TDrawingContext>(data.TargetPoint));
                         label.TextSize = dls;
                         label.Padding = DataLabelsPadding;
                         var labelPosition = GetLabelPosition(
-                            x - hgs, y - hgs, gs, gs, label.Measure(DataLabelsDrawableTask), DataLabelsPosition,
+                            x - hgs, y - hgs, gs, gs, label.Measure(DataLabelsPaint), DataLabelsPosition,
                             SeriesProperties, data.TargetPoint.PrimaryValue > Pivot);
                         label.X = labelPosition.X;
                         label.Y = labelPosition.Y;
@@ -353,14 +397,14 @@ namespace LiveChartsCore
 
                 if (GeometryFill != null)
                 {
-                    chart.Canvas.AddDrawableTask(GeometryFill);
-                    GeometryFill.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
+                    cartesianChart.Canvas.AddDrawableTask(GeometryFill);
+                    GeometryFill.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
                     GeometryFill.ZIndex = actualZIndex + 0.3;
                 }
                 if (GeometryStroke != null)
                 {
-                    chart.Canvas.AddDrawableTask(GeometryStroke);
-                    GeometryStroke.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
+                    cartesianChart.Canvas.AddDrawableTask(GeometryStroke);
+                    GeometryStroke.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
                     GeometryStroke.ZIndex = actualZIndex + 0.4;
                 }
                 segmentI++;
@@ -370,62 +414,85 @@ namespace LiveChartsCore
             {
                 var iFill = _fillPathHelperContainer.Count - 1;
                 var fillHelper = _fillPathHelperContainer[iFill];
-                if (Fill != null) Fill.RemoveGeometryFromPainTask(fillHelper.Path);
+                if (Fill != null) Fill.RemoveGeometryFromPainTask(cartesianChart.Canvas, fillHelper.Path);
                 _fillPathHelperContainer.RemoveAt(iFill);
 
                 var iStroke = _strokePathHelperContainer.Count - 1;
                 var strokeHelper = _strokePathHelperContainer[iStroke];
-                if (Stroke != null) Stroke.RemoveGeometryFromPainTask(strokeHelper.Path);
+                if (Stroke != null) Stroke.RemoveGeometryFromPainTask(cartesianChart.Canvas, strokeHelper.Path);
                 _strokePathHelperContainer.RemoveAt(iStroke);
             }
 
-            if (DataLabelsDrawableTask != null)
+            if (DataLabelsPaint != null)
             {
-                chart.Canvas.AddDrawableTask(DataLabelsDrawableTask);
-                DataLabelsDrawableTask.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
-                DataLabelsDrawableTask.ZIndex = actualZIndex + 0.5;
+                cartesianChart.Canvas.AddDrawableTask(DataLabelsPaint);
+                DataLabelsPaint.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
+                DataLabelsPaint.ZIndex = actualZIndex + 0.5;
             }
 
             foreach (var point in toDeletePoints)
             {
-                if (point.Context.Chart != chart.View) continue;
+                if (point.Context.Chart != cartesianChart.View) continue;
                 SoftDeletePoint(point, primaryScale, secondaryScale);
                 _ = everFetched.Remove(point);
             }
         }
 
         /// <inheritdoc cref="ICartesianSeries{TDrawingContext}.GetBounds(CartesianChart{TDrawingContext}, IAxis{TDrawingContext}, IAxis{TDrawingContext})"/>
-        public override DimensionalBounds GetBounds(
-            CartesianChart<TDrawingContext> chart, IAxis<TDrawingContext> x, IAxis<TDrawingContext> y)
+        public override SeriesBounds GetBounds(
+            CartesianChart<TDrawingContext> chart, IAxis<TDrawingContext> secondaryAxis, IAxis<TDrawingContext> primaryAxis)
         {
-            var baseBounds = base.GetBounds(chart, x, y);
+            var baseSeriesBounds = base.GetBounds(chart, secondaryAxis, primaryAxis);
 
-            var tick = y.GetTick(chart.ControlSize, baseBounds.VisiblePrimaryBounds);
-            var xTick = x.GetTick(chart.ControlSize, baseBounds.VisibleSecondaryBounds);
+            if (baseSeriesBounds.IsPrevious) return baseSeriesBounds;
+            var baseBounds = baseSeriesBounds.Bounds;
 
-            return new DimensionalBounds
+            var tickPrimary = primaryAxis.GetTick(chart.ControlSize, baseBounds.VisiblePrimaryBounds);
+            var tickSecondary = secondaryAxis.GetTick(chart.ControlSize, baseBounds.VisibleSecondaryBounds);
+
+            var ts = tickSecondary.Value * DataPadding.X;
+            var tp = tickPrimary.Value * DataPadding.Y;
+
+            if (baseBounds.VisibleSecondaryBounds.Delta == 0)
             {
-                SecondaryBounds = new Bounds
-                {
-                    Max = baseBounds.SecondaryBounds.Max + 0.5f * xTick.Value,
-                    Min = baseBounds.SecondaryBounds.Min - 0.5f * xTick.Value
-                },
-                PrimaryBounds = new Bounds
-                {
-                    Max = baseBounds.PrimaryBounds.Max + tick.Value,
-                    min = baseBounds.PrimaryBounds.min - tick.Value
-                },
-                VisibleSecondaryBounds = new Bounds
-                {
-                    Max = baseBounds.VisibleSecondaryBounds.Max + 0.5f * xTick.Value,
-                    Min = baseBounds.VisibleSecondaryBounds.Min - 0.5f * xTick.Value
-                },
-                VisiblePrimaryBounds = new Bounds
-                {
-                    Max = baseBounds.VisiblePrimaryBounds.Max + tick.Value,
-                    min = baseBounds.VisiblePrimaryBounds.min - tick.Value
-                },
-            };
+                var ms = baseBounds.VisibleSecondaryBounds.Min == 0 ? 1 : baseBounds.VisibleSecondaryBounds.Min;
+                ts = 0.1 * ms * DataPadding.X;
+            }
+
+            if (baseBounds.VisiblePrimaryBounds.Delta == 0)
+            {
+                var mp = baseBounds.VisiblePrimaryBounds.Min == 0 ? 1 : baseBounds.VisiblePrimaryBounds.Min;
+                tp = 0.1 * mp * DataPadding.Y;
+            }
+
+            return
+                new SeriesBounds(
+                    new DimensionalBounds
+                    {
+                        SecondaryBounds = new Bounds
+                        {
+                            Max = baseBounds.SecondaryBounds.Max + ts,
+                            Min = baseBounds.SecondaryBounds.Min - ts
+                        },
+                        PrimaryBounds = new Bounds
+                        {
+                            Max = baseBounds.PrimaryBounds.Max + tp,
+                            Min = baseBounds.PrimaryBounds.Min - tp
+                        },
+                        VisibleSecondaryBounds = new Bounds
+                        {
+                            Max = baseBounds.VisibleSecondaryBounds.Max + ts,
+                            Min = baseBounds.VisibleSecondaryBounds.Min - ts
+                        },
+                        VisiblePrimaryBounds = new Bounds
+                        {
+                            Max = baseBounds.VisiblePrimaryBounds.Max + tp,
+                            Min = baseBounds.VisiblePrimaryBounds.Min - tp
+                        },
+                        MinDeltaPrimary = baseBounds.MinDeltaPrimary,
+                        MinDeltaSecondary = baseBounds.MinDeltaSecondary
+                    },
+                    false);
         }
 
         /// <summary>
@@ -454,10 +521,10 @@ namespace LiveChartsCore
                 .CompleteCurrentTransitions();
         }
 
-        /// <inheritdoc cref="DrawableSeries{TModel, TVisual, TLabel, TDrawingContext}.OnPaintContextChanged"/>
-        protected override void OnPaintContextChanged()
+        /// <inheritdoc cref="ChartSeries{TModel, TVisual, TLabel, TDrawingContext}.OnSeriesMiniatureChanged"/>
+        protected override void OnSeriesMiniatureChanged()
         {
-            var context = new PaintContext<TDrawingContext>();
+            var context = new CanvasSchedule<TDrawingContext>();
             var lss = (float)LegendShapeSize;
             var w = LegendShapeSize;
             var sh = 0f;
@@ -475,8 +542,7 @@ namespace LiveChartsCore
                 sh = _geometryStroke.StrokeThickness;
                 strokeClone.ZIndex = 1;
                 w += 2 * _geometryStroke.StrokeThickness;
-                strokeClone.AddGeometyToPaintTask(visual);
-                _ = context.PaintTasks.Add(strokeClone);
+                context.PaintSchedules.Add(new PaintSchedule<TDrawingContext>(strokeClone, visual));
             }
             else if (Stroke != null)
             {
@@ -491,29 +557,27 @@ namespace LiveChartsCore
                 sh = strokeClone.StrokeThickness;
                 strokeClone.ZIndex = 1;
                 w += 2 * strokeClone.StrokeThickness;
-                strokeClone.AddGeometyToPaintTask(visual);
-                _ = context.PaintTasks.Add(strokeClone);
+                context.PaintSchedules.Add(new PaintSchedule<TDrawingContext>(strokeClone, visual));
             }
 
             if (_geometryFill != null)
             {
                 var fillClone = _geometryFill.CloneTask();
                 var visual = new TVisual { X = sh, Y = sh, Height = lss, Width = lss };
-                fillClone.AddGeometyToPaintTask(visual);
-                _ = context.PaintTasks.Add(fillClone);
+                context.PaintSchedules.Add(new PaintSchedule<TDrawingContext>(fillClone, visual));
             }
             else if (Fill != null)
             {
                 var fillClone = Fill.CloneTask();
                 var visual = new TVisual { X = sh, Y = sh, Height = lss, Width = lss };
-                fillClone.AddGeometyToPaintTask(visual);
-                _ = context.PaintTasks.Add(fillClone);
+                context.PaintSchedules.Add(new PaintSchedule<TDrawingContext>(fillClone, visual));
             }
 
             context.Width = w;
             context.Height = w;
 
-            paintContext = context;
+            canvaSchedule = context;
+            OnPropertyChanged(nameof(CanvasSchedule));
         }
 
         private IEnumerable<BezierData> GetSpline(
@@ -604,9 +668,118 @@ namespace LiveChartsCore
                     X1 = xScale.ToPixels(c2X),
                     Y1 = yScale.ToPixels(c2Y),
                     X2 = xScale.ToPixels(next.SecondaryValue),
-                    Y2 = yScale.ToPixels(next.PrimaryValue + nys)
+                    Y2 = yScale.ToPixels(next.PrimaryValue + nys),
+                    OriginalData = new BezierData(points[i])
+                    {
+                        X0 = x0,
+                        Y0 = y0,
+                        X1 = c2X,
+                        Y1 = c2Y,
+                        X2 = next.SecondaryValue,
+                        Y2 = next.PrimaryValue + nys,
+                    }
                 };
             }
+        }
+
+        /// <inheritdoc cref="Series{TModel, TVisual, TLabel, TDrawingContext}.SetDefaultPointTransitions(ChartPoint)"/>
+        protected override void SetDefaultPointTransitions(ChartPoint chartPoint)
+        {
+            var chart = chartPoint.Context.Chart;
+
+            if (chartPoint.Context.Visual is not LineBezierVisualPoint<TDrawingContext, TVisual, TBezierSegment, TPathArgs> visual)
+                throw new Exception("Unable to initialize the point instance.");
+
+            _ = visual.Geometry
+                .TransitionateProperties(
+                    nameof(visual.Geometry.X),
+                    nameof(visual.Geometry.Y),
+                    nameof(visual.Geometry.Width),
+                    nameof(visual.Geometry.Height))
+                .WithAnimation(animation =>
+                    animation
+                        .WithDuration(AnimationsSpeed ?? chart.AnimationsSpeed)
+                        .WithEasingFunction(EasingFunction ?? chart.EasingFunction));
+
+            _ = visual.Bezier
+                .TransitionateProperties(
+                    nameof(visual.Bezier.X0),
+                    nameof(visual.Bezier.Y0),
+                    nameof(visual.Bezier.X1),
+                    nameof(visual.Bezier.Y1),
+                    nameof(visual.Bezier.X2),
+                    nameof(visual.Bezier.Y2))
+                .WithAnimation(animation =>
+                    animation
+                        .WithDuration(AnimationsSpeed ?? chart.AnimationsSpeed)
+                        .WithEasingFunction(EasingFunction ?? chart.EasingFunction));
+        }
+
+        /// <inheritdoc cref="Series{TModel, TVisual, TLabel, TDrawingContext}.SoftDeletePoint(ChartPoint, Scaler, Scaler)"/>
+        protected override void SoftDeletePoint(ChartPoint point, Scaler primaryScale, Scaler secondaryScale)
+        {
+            var visual = (LineBezierVisualPoint<TDrawingContext, TVisual, TBezierSegment, TPathArgs>?)point.Context.Visual;
+            if (visual == null) return;
+
+            var chartView = (ICartesianChartView<TDrawingContext>)point.Context.Chart;
+            if (chartView.Core.IsZoomingOrPanning)
+            {
+                visual.Geometry.CompleteAllTransitions();
+                visual.Geometry.RemoveOnCompleted = true;
+                return;
+            }
+
+            var gs = _geometrySize;
+            var hgs = gs / 2f;
+
+            var x = secondaryScale.ToPixels(point.SecondaryValue) - hgs;
+            var y = primaryScale.ToPixels(point.PrimaryValue) - hgs;
+
+            visual.Geometry.X = x;
+            visual.Geometry.Y = y;
+            visual.Geometry.Height = 0;
+            visual.Geometry.Width = 0;
+            visual.Geometry.RemoveOnCompleted = true;
+
+            if (dataProvider == null) throw new Exception("Data provider not found");
+            dataProvider.DisposePoint(point);
+
+            var label = (TLabel?)point.Context.Label;
+            if (label == null) return;
+
+            label.TextSize = 1;
+            label.RemoveOnCompleted = true;
+        }
+
+        /// <inheritdoc cref="Series{TModel, TVisual, TLabel, TDrawingContext}.SoftDelete(IChartView)"/>
+        public override void SoftDelete(IChartView chart)
+        {
+            base.SoftDelete(chart);
+            var canvas = ((ICartesianChartView<TDrawingContext>)chart).CoreCanvas;
+
+            if (Fill != null)
+            {
+                foreach (var pathHelper in _fillPathHelperContainer.ToArray())
+                    Fill.RemoveGeometryFromPainTask(canvas, pathHelper.Path);
+            }
+
+            if (Stroke != null)
+            {
+                foreach (var pathHelper in _strokePathHelperContainer.ToArray())
+                    Stroke.RemoveGeometryFromPainTask(canvas, pathHelper.Path);
+            }
+
+            if (GeometryFill != null) canvas.RemovePaintTask(GeometryFill);
+            if (GeometryStroke != null) canvas.RemovePaintTask(GeometryStroke);
+        }
+
+        /// <summary>
+        /// Gets the paint tasks.
+        /// </summary>
+        /// <returns></returns>
+        protected override IPaintTask<TDrawingContext>?[] GetPaintTasks()
+        {
+            return new[] { Stroke, Fill, _geometryFill, _geometryStroke, DataLabelsPaint };
         }
 
         private IEnumerable<ChartPoint[]> SplitEachNull(
@@ -645,86 +818,6 @@ namespace LiveChartsCore
             }
 
             if (l.Count > 0) yield return l.ToArray();
-        }
-
-        /// <inheritdoc cref="Series{TModel, TVisual, TLabel, TDrawingContext}.SetDefaultPointTransitions(ChartPoint)"/>
-        protected override void SetDefaultPointTransitions(ChartPoint chartPoint)
-        {
-            var chart = chartPoint.Context.Chart;
-
-            if (chartPoint.Context.Visual is not LineBezierVisualPoint<TDrawingContext, TVisual, TBezierSegment, TPathArgs> visual) throw new Exception("Unable to initialize the point instance.");
-
-            _ = visual.Geometry
-                .TransitionateProperties(
-                    nameof(visual.Geometry.X),
-                    nameof(visual.Geometry.Y),
-                    nameof(visual.Geometry.Width),
-                    nameof(visual.Geometry.Height))
-                .WithAnimation(animation =>
-                    animation
-                        .WithDuration(chart.AnimationsSpeed)
-                        .WithEasingFunction(chart.EasingFunction));
-
-            _ = visual.Bezier
-                .TransitionateProperties(
-                    nameof(visual.Bezier.X0),
-                    nameof(visual.Bezier.Y0),
-                    nameof(visual.Bezier.X1),
-                    nameof(visual.Bezier.Y1),
-                    nameof(visual.Bezier.X2),
-                    nameof(visual.Bezier.Y2))
-                .WithAnimation(animation =>
-                    animation
-                         .WithDuration(chart.AnimationsSpeed)
-                        .WithEasingFunction(chart.EasingFunction));
-        }
-
-        /// <inheritdoc cref="Series{TModel, TVisual, TLabel, TDrawingContext}.SoftDeletePoint(ChartPoint, Scaler, Scaler)"/>
-        protected override void SoftDeletePoint(ChartPoint point, Scaler primaryScale, Scaler secondaryScale)
-        {
-            var visual = (LineBezierVisualPoint<TDrawingContext, TVisual, TBezierSegment, TPathArgs>?)point.Context.Visual;
-            if (visual == null) return;
-
-            //float p = primaryScale.ToPixels(pivot);
-
-            //var secondary = secondaryScale.ToPixels(point.SecondaryValue);
-            //var x = secondary;// - uwm + cp; // we cant know those values... the series does not have a position now...
-
-            //visual.X = 0;
-            //visual.Y = 0;
-            visual.Geometry.Height = 0;
-            visual.Geometry.Width = 0;
-            visual.Geometry.RemoveOnCompleted = true;
-        }
-
-        /// <inheritdoc cref="Series{TModel, TVisual, TLabel, TDrawingContext}.Delete(IChartView)"/>
-        public override void Delete(IChartView chart)
-        {
-            base.Delete(chart);
-
-            if (Fill != null)
-                foreach (var pathHelper in _fillPathHelperContainer.ToArray())
-                    Fill.RemoveGeometryFromPainTask(pathHelper.Path);
-
-            if (Stroke != null)
-                foreach (var pathHelper in _strokePathHelperContainer.ToArray())
-                    Stroke.RemoveGeometryFromPainTask(pathHelper.Path);
-        }
-
-        /// <summary>
-        /// Releases unmanaged and - optionally - managed resources.
-        /// </summary>
-        /// <returns></returns>
-        public override void Dispose()
-        {
-            foreach (var chart in subscribedTo)
-            {
-                var c = (Chart<TDrawingContext>)chart;
-                if (_geometryFill != null) c.Canvas.RemovePaintTask(_geometryFill);
-                if (_geometryStroke != null) c.Canvas.RemovePaintTask(_geometryStroke);
-            }
-
-            base.Dispose();
         }
     }
 }

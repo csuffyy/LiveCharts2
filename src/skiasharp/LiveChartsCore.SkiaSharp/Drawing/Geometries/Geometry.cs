@@ -38,22 +38,22 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         /// <summary>
         /// The opacity property
         /// </summary>
-        protected readonly FloatMotionProperty opacityProperty;
+        protected FloatMotionProperty opacityProperty;
 
         /// <summary>
         /// The x
         /// </summary>
-        protected readonly FloatMotionProperty x;
+        protected FloatMotionProperty xProperty;
 
         /// <summary>
         /// The y
         /// </summary>
-        protected readonly FloatMotionProperty y;
+        protected FloatMotionProperty yProperty;
 
         /// <summary>
         /// The rotation
         /// </summary>
-        protected readonly FloatMotionProperty rotation;
+        protected FloatMotionProperty rotationProperty;
 
         /// <summary>
         /// The has custom transform
@@ -65,18 +65,18 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         /// </summary>
         public Geometry(bool hasCustomTransform = false)
         {
-            x = RegisterMotionProperty(new FloatMotionProperty(nameof(X), 0));
-            y = RegisterMotionProperty(new FloatMotionProperty(nameof(Y), 0));
-            rotation = RegisterMotionProperty(new FloatMotionProperty(nameof(Rotation), 0));
+            xProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(X), 0));
+            yProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(Y), 0));
+            rotationProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(Rotation), 0));
             opacityProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(Opacity), 1));
             this.hasCustomTransform = hasCustomTransform;
         }
 
         /// <inheritdoc cref="IGeometry{TDrawingContext}.X" />
-        public float X { get => x.GetMovement(this); set => x.SetMovement(value, this); }
+        public float X { get => xProperty.GetMovement(this); set => xProperty.SetMovement(value, this); }
 
         /// <inheritdoc cref="IGeometry{TDrawingContext}.Y" />
-        public float Y { get => y.GetMovement(this); set => y.SetMovement(value, this); }
+        public float Y { get => yProperty.GetMovement(this); set => yProperty.SetMovement(value, this); }
 
         /// <summary>
         /// Gets or sets the matrix transform.
@@ -90,7 +90,7 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         public float Opacity { get => opacityProperty.GetMovement(this); set => opacityProperty.SetMovement(value, this); }
 
         /// <inheritdoc cref="IGeometry{TDrawingContext}.Rotation" />
-        public float Rotation { get => rotation.GetMovement(this); set => rotation.SetMovement(value, this); }
+        public float Rotation { get => rotationProperty.GetMovement(this); set => rotationProperty.SetMovement(value, this); }
 
         /// <inheritdoc cref="IVisualChartPoint{TDrawingContext}.HighlightableGeometry" />
         public IDrawable<SkiaSharpDrawingContext> HighlightableGeometry => GetHighlitableGeometry();
@@ -126,7 +126,7 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
             OnDraw(context, context.Paint);
             AfterDraw(context);
 
-            if (_hasTransform || hasRotation | hasCustomTransform) context.Canvas.Restore();
+            if (_hasTransform || hasRotation || hasCustomTransform) context.Canvas.Restore();
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         /// </summary>
         /// <param name="drawableTask">The drawable task.</param>
         /// <returns>the size of the geometry.</returns>
-        public SizeF Measure(IDrawableTask<SkiaSharpDrawingContext> drawableTask)
+        public SizeF Measure(IPaintTask<SkiaSharpDrawingContext> drawableTask)
         {
             var measure = OnMeasure((PaintTask)drawableTask);
 
@@ -150,14 +150,16 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
             {
                 const double toRadias = Math.PI / 180;
 
-                if (r < 0) r += 360;
                 r %= 360;
+                if (r < 0) r += 360;
 
                 if (r > 180) r = 360 - r;
-                if (r > 90 && r <= 180) r = 180 - r;
+                if (r is > 90 and <= 180) r = 180 - r;
 
-                var w = (float)(Math.Cos(r * toRadias) * measure.Width + Math.Sin(r * toRadias) * measure.Height);
-                var h = (float)(Math.Sin(r * toRadias) * measure.Width + Math.Cos(r * toRadias) * measure.Height);
+                var rRadians = r * toRadias;
+
+                var w = (float)(Math.Cos(rRadians) * measure.Width + Math.Sin(rRadians) * measure.Height);
+                var h = (float)(Math.Sin(rRadians) * measure.Width + Math.Cos(rRadians) * measure.Height);
 
                 measure = new SizeF(w, h);
             }
@@ -174,7 +176,6 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
 
             context.PaintTask.SetOpacity(context, this);
         }
-
 
         /// <summary>
         /// Called after the draw.

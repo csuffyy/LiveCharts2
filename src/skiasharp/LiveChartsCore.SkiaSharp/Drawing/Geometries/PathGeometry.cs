@@ -30,8 +30,8 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
     /// <inheritdoc cref="IPathGeometry{TDrawingContext, TPathArgs}" />
     public class PathGeometry : Drawable, IPathGeometry<SkiaSharpDrawingContext, SKPath>
     {
-        private readonly HashSet<IPathCommand<SKPath>> _commands = new HashSet<IPathCommand<SKPath>>();
-        private IPathCommand<SKPath>[] _drawingCommands = null;
+        private readonly HashSet<IPathCommand<SKPath>> _commands = new();
+        private IPathCommand<SKPath>[]? _drawingCommands = null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PathGeometry"/> class.
@@ -48,23 +48,35 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         {
             if (_commands.Count == 0) return;
 
-            var toExecute = _drawingCommands ?? (_drawingCommands = _commands.ToArray());
+            var toExecute = _drawingCommands ??= _commands.ToArray();
 
-            var path = new SKPath();
-            var isValid = true;
+            var toRemoveSegments = new List<IPathCommand<SKPath>>();
 
-            foreach (var segment in toExecute)
+            using (var path = new SKPath())
             {
-                segment.IsCompleted = true;
-                segment.Execute(path, GetCurrentTime(), this);
-                isValid = isValid && segment.IsCompleted;
+                var isValid = true;
+
+                foreach (var segment in toExecute)
+                {
+                    segment.IsValid = true;
+                    segment.Execute(path, GetCurrentTime(), this);
+                    isValid = isValid && segment.IsValid;
+
+                    if (segment.IsValid && segment.RemoveOnCompleted) toRemoveSegments.Add(segment);
+                }
+
+                foreach (var segment in toRemoveSegments)
+                {
+                    _ = _commands.Remove(segment);
+                    isValid = false;
+                }
+
+                if (IsClosed) path.Close();
+
+                context.Canvas.DrawPath(path, context.Paint);
+
+                if (!isValid) Invalidate();
             }
-
-            if (IsClosed) path.Close();
-            context.Canvas.DrawPath(path, context.Paint);
-
-            if (!isValid) Invalidate();
-
         }
 
         /// <inheritdoc cref="IPathGeometry{TDrawingContext, TPathArgs}.AddCommand(IPathCommand{TPathArgs})" />

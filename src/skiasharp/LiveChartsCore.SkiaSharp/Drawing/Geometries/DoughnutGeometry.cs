@@ -40,6 +40,7 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         private readonly FloatMotionProperty _sweepProperty;
         private readonly FloatMotionProperty _pushoutProperty;
         private readonly FloatMotionProperty _innerRadiusProperty;
+        private readonly FloatMotionProperty _cornerRadiusProperty;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DoughnutGeometry"/> class.
@@ -54,6 +55,7 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
             _sweepProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(SweepAngle)));
             _pushoutProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(PushOut)));
             _innerRadiusProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(InnerRadius)));
+            _cornerRadiusProperty = RegisterMotionProperty(new FloatMotionProperty(nameof(CornerRadius)));
         }
 
         /// <inheritdoc cref="IDoughnutGeometry{TDrawingContext}.CenterX" />
@@ -80,6 +82,14 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         /// <inheritdoc cref="IDoughnutGeometry{TDrawingContext}.InnerRadius" />
         public float InnerRadius { get => _innerRadiusProperty.GetMovement(this); set => _innerRadiusProperty.SetMovement(value, this); }
 
+        /// <inheritdoc cref="IDoughnutGeometry{TDrawingContext}.CornerRadius" />
+        public float CornerRadius { get => _cornerRadiusProperty.GetMovement(this); set => _cornerRadiusProperty.SetMovement(value, this); }
+
+        /// <inheritdoc cref="IDoughnutGeometry{TDrawingContext}.InvertedCornerRadius" />
+        public bool InvertedCornerRadius { get; set; }
+
+        internal static Action<DoughnutGeometry, SkiaSharpDrawingContext, SKPaint>? AlternativeDraw { get; set; }
+
         /// <inheritdoc cref="Geometry.OnMeasure(PaintTask)" />
         protected override SizeF OnMeasure(PaintTask paint)
         {
@@ -89,57 +99,66 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
         /// <inheritdoc cref="Geometry.OnDraw(SkiaSharpDrawingContext, SKPaint)" />
         public override void OnDraw(SkiaSharpDrawingContext context, SKPaint paint)
         {
-            var path = new SKPath();
-
-            var cx = CenterX;
-            var cy = CenterY;
-            var wedge = InnerRadius;
-            var r = Width * 0.5f;
-            var startAngle = StartAngle;
-            var sweepAngle = SweepAngle;
-            var toRadians = (float)(Math.PI / 180);
-            var pushout = PushOut;
-
-            path.MoveTo(
-                (float)(cx + Math.Cos(startAngle * toRadians) * wedge),
-                (float)(cy + Math.Sin(startAngle * toRadians) * wedge));
-            path.LineTo(
-                (float)(cx + Math.Cos(startAngle * toRadians) * (r + pushout)),
-                (float)(cy + Math.Sin(startAngle * toRadians) * (r + pushout)));
-            path.ArcTo(
-                new SKRect { Left = X, Top = Y, Size = new SKSize { Width = Width, Height = Height } },
-                startAngle,
-                sweepAngle,
-                false);
-            path.LineTo(
-                (float)(cx + Math.Cos((sweepAngle + startAngle) * toRadians) * wedge),
-                (float)(cy + Math.Sin((sweepAngle + startAngle) * toRadians) * wedge));
-            path.ArcTo(
-                new SKPoint { X = wedge + pushout, Y = wedge + pushout },
-                0,
-                SKPathArcSize.Small,
-                SKPathDirection.CounterClockwise,
-                new SKPoint
-                {
-                    X = (float)(cx + Math.Cos(startAngle * toRadians) * wedge),
-                    Y = (float)(cy + Math.Sin(startAngle * toRadians) * wedge)
-                });
-
-            path.Close();
-
-            if (pushout > 0)
+            if (AlternativeDraw != null)
             {
-                var pushoutAngle = startAngle + 0.5f * sweepAngle;
-                var x = pushout * (float)Math.Cos(pushoutAngle * toRadians);
-                var y = pushout * (float)Math.Sin(pushoutAngle * toRadians);
-
-                _ = context.Canvas.Save();
-                context.Canvas.Translate(x, y);
+                AlternativeDraw(this, context, paint);
+                return;
             }
 
-            context.Canvas.DrawPath(path, context.Paint);
+            if (CornerRadius > 0) throw new NotImplementedException($"{nameof(CornerRadius)} is not implemented.");
 
-            if (pushout > 0) context.Canvas.Restore();
+            using (var path = new SKPath())
+            {
+                var cx = CenterX;
+                var cy = CenterY;
+                var wedge = InnerRadius;
+                var r = Width * 0.5f;
+                var startAngle = StartAngle;
+                var sweepAngle = SweepAngle;
+                const float toRadians = (float)(Math.PI / 180);
+                var pushout = PushOut;
+
+                path.MoveTo(
+                    (float)(cx + Math.Cos(startAngle * toRadians) * wedge),
+                    (float)(cy + Math.Sin(startAngle * toRadians) * wedge));
+                path.LineTo(
+                    (float)(cx + Math.Cos(startAngle * toRadians) * (r + pushout)),
+                    (float)(cy + Math.Sin(startAngle * toRadians) * (r + pushout)));
+                path.ArcTo(
+                    new SKRect { Left = X, Top = Y, Size = new SKSize { Width = Width, Height = Height } },
+                    startAngle,
+                    sweepAngle,
+                    false);
+                path.LineTo(
+                    (float)(cx + Math.Cos((sweepAngle + startAngle) * toRadians) * wedge),
+                    (float)(cy + Math.Sin((sweepAngle + startAngle) * toRadians) * wedge));
+                path.ArcTo(
+                    new SKPoint { X = wedge + pushout, Y = wedge + pushout },
+                    0,
+                    sweepAngle > 180 ? SKPathArcSize.Large : SKPathArcSize.Small,
+                    SKPathDirection.CounterClockwise,
+                    new SKPoint
+                    {
+                        X = (float)(cx + Math.Cos(startAngle * toRadians) * wedge),
+                        Y = (float)(cy + Math.Sin(startAngle * toRadians) * wedge)
+                    });
+
+                path.Close();
+
+                if (pushout > 0)
+                {
+                    var pushoutAngle = startAngle + 0.5f * sweepAngle;
+                    var x = pushout * (float)Math.Cos(pushoutAngle * toRadians);
+                    var y = pushout * (float)Math.Sin(pushoutAngle * toRadians);
+
+                    _ = context.Canvas.Save();
+                    context.Canvas.Translate(x, y);
+                }
+
+                context.Canvas.DrawPath(path, context.Paint);
+
+                if (pushout > 0) context.Canvas.Restore();
+            }
         }
     }
 }

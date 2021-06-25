@@ -27,6 +27,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Media;
 using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
 using System.Collections.Generic;
@@ -39,19 +40,19 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
     /// </summary>
     public class DefaultTooltip : UserControl, IChartTooltip<SkiaSharpDrawingContext>
     {
-        private readonly DataTemplate defaultTemplate;
-        private readonly Dictionary<ChartPoint, object> activePoints = new();
+        private readonly DataTemplate _defaultTemplate;
+        private readonly Dictionary<ChartPoint, object> _activePoints = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultTooltip"/> class.
         /// </summary>
-        /// <exception cref="Exception">default tempalte not found</exception>
+        /// <exception cref="Exception">default template not found</exception>
         public DefaultTooltip()
         {
             InitializeComponent();
             var t = (DataTemplate?)Resources["defaultTemplate"];
-            if (t == null) throw new Exception("default tempalte not found");
-            defaultTemplate = t;
+            if (t == null) throw new Exception("default template not found");
+            _defaultTemplate = t;
             TooltipTemplate = t;
             Canvas.SetTop(this, 0);
             Canvas.SetLeft(this, 0);
@@ -129,15 +130,15 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
         {
             var avaloniaChart = (IAvaloniaChart)chart.View;
 
-            var template = avaloniaChart.TooltipTemplate ?? defaultTemplate;
+            var template = avaloniaChart.TooltipTemplate ?? _defaultTemplate;
             if (TooltipTemplate != template) TooltipTemplate = template;
 
             if (!tooltipPoints.Any())
             {
-                foreach (var key in activePoints.Keys.ToArray())
+                foreach (var key in _activePoints.Keys.ToArray())
                 {
                     key.RemoveFromHoverState();
-                    _ = activePoints.Remove(key);
+                    _ = _activePoints.Remove(key);
                 }
                 return;
             }
@@ -147,7 +148,7 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
             if (chart is CartesianChart<SkiaSharpDrawingContext>)
             {
                 location = tooltipPoints.GetCartesianTooltipLocation(
-                    chart.TooltipPosition, new System.Drawing.SizeF((float)Bounds.Width, (float)Bounds.Height));
+                    chart.TooltipPosition, new System.Drawing.SizeF((float)Bounds.Width, (float)Bounds.Height), chart.ControlSize);
             }
             if (chart is PieChart<SkiaSharpDrawingContext>)
             {
@@ -192,14 +193,14 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
             foreach (var tooltipPoint in tooltipPoints)
             {
                 tooltipPoint.Point.AddToHoverState();
-                activePoints[tooltipPoint.Point] = o;
+                _activePoints[tooltipPoint.Point] = o;
             }
 
-            foreach (var key in activePoints.Keys.ToArray())
+            foreach (var key in _activePoints.Keys.ToArray())
             {
-                if (activePoints[key] == o) continue;
+                if (_activePoints[key] == o) continue;
                 key.RemoveFromHoverState();
-                _ = activePoints.Remove(key);
+                _ = _activePoints.Remove(key);
             }
 
             chart.Canvas.Invalidate();
@@ -211,7 +212,7 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
         /// <returns></returns>
         protected void BuildContent()
         {
-            var template = TooltipTemplate ?? defaultTemplate;
+            var template = TooltipTemplate ?? _defaultTemplate;
             var model = new TooltipBindingContext
             {
                 Points = Points,
@@ -227,6 +228,11 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
             if (templated == null) return;
 
             Content = templated;
+        }
+
+        void IChartTooltip<SkiaSharpDrawingContext>.Hide()
+        {
+            Content = null;
         }
 
         private void InitializeComponent()

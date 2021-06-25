@@ -27,7 +27,7 @@ namespace LiveChartsCore.Drawing
     /// </summary>
     /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
     /// <seealso cref="IDrawable{TDrawingContext}" />
-    public interface IDoughnutGeometry<TDrawingContext> : IDrawable<TDrawingContext>
+    public interface IDoughnutGeometry<TDrawingContext> : IGeometry<TDrawingContext>
         where TDrawingContext : DrawingContext
     {
         /// <summary>
@@ -45,22 +45,6 @@ namespace LiveChartsCore.Drawing
         /// The center y.
         /// </value>
         float CenterY { get; set; }
-
-        /// <summary>
-        /// Gets or sets the x.
-        /// </summary>
-        /// <value>
-        /// The x.
-        /// </value>
-        float X { get; set; }
-
-        /// <summary>
-        /// Gets or sets the y.
-        /// </summary>
-        /// <value>
-        /// The y.
-        /// </value>
-        float Y { get; set; }
 
         /// <summary>
         /// Gets or sets the width.
@@ -109,5 +93,21 @@ namespace LiveChartsCore.Drawing
         /// The inner radius.
         /// </value>
         float InnerRadius { get; set; }
+
+        /// <summary>
+        /// Gets or sets the corner radius.
+        /// </summary>
+        /// <value>
+        /// The corner radius.
+        /// </value>
+        float CornerRadius { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the direction of the corner radius is inverted.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if the direction is inverted; otherwise, <c>false</c>.
+        /// </value>
+        bool InvertedCornerRadius { get; set; }
     }
 }

@@ -20,9 +20,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using LiveChartsCore.Kernel;
 using LiveChartsCore.Drawing;
 using System;
+using LiveChartsCore.Kernel.Sketches;
 
 namespace LiveChartsCore.Themes
 {
@@ -64,7 +64,23 @@ namespace LiveChartsCore.Themes
         }
 
         /// <summary>
-        ///  Defines a style builder for <see cref="IDrawableSeries{TDrawingContext}"/> objects.
+        /// Defines a style builder for <see cref="DrawMarginFrame{TDrawingContext}"/> objects.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForDrawMargin<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<DrawMarginFrame<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.DrawMarginFrameBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
+        ///  Defines a style builder for <see cref="IChartSeries{TDrawingContext}"/> objects.
         /// </summary>
         /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
         /// <param name="styler">The styler.</param>
@@ -72,7 +88,7 @@ namespace LiveChartsCore.Themes
         /// <returns></returns>
         public static VisualsStyle<TDrawingContext> HasRuleForAnySeries<TDrawingContext>(
             this VisualsStyle<TDrawingContext> styler,
-            Action<IDrawableSeries<TDrawingContext>> predicate)
+            Action<IChartSeries<TDrawingContext>> predicate)
             where TDrawingContext : DrawingContext
         {
             styler.SeriesBuilder.Add(predicate);
@@ -96,6 +112,38 @@ namespace LiveChartsCore.Themes
         }
 
         /// <summary>
+        ///  Defines a style builder for <see cref="IPieSeries{TDrawingContext}"/> objects when used as gauges.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForGaugeSeries<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<IPieSeries<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.GaugeSeriesBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
+        ///  Defines a style builder for <see cref="IPieSeries{TDrawingContext}"/> objects when used as gauges fills.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForGaugeFillSeries<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<IPieSeries<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.GaugeFillSeriesBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
         ///  Defines a style builder for <see cref="ILineSeries{TDrawingContext}"/> objects.
         /// </summary>
         /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
@@ -108,6 +156,38 @@ namespace LiveChartsCore.Themes
             where TDrawingContext : DrawingContext
         {
             styler.LineSeriesBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
+        ///  Defines a style builder for <see cref="IStepLineSeries{TDrawingContext}"/> objects.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForStepLineSeries<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<IStepLineSeries<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.StepLineSeriesBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
+        ///  Defines a style builder for stacked <see cref="IStepLineSeries{TDrawingContext}"/> objects.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForStackedStepLineSeries<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<IStepLineSeries<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.StackedStepLineSeriesBuilder.Add(predicate);
             return styler;
         }
 
@@ -220,6 +300,54 @@ namespace LiveChartsCore.Themes
             where TDrawingContext : DrawingContext
         {
             styler.StackedRowSeriesBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
+        ///  Defines a style builder for <see cref="IScatterSeries{TDrawingContext}"/> objects.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForScatterSeries<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<IScatterSeries<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.ScatterSeriesBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
+        ///  Defines a style builder for <see cref="IHeatSeries{TDrawingContext}"/> objects.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForHeatSeries<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<IHeatSeries<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.HeatSeriesBuilder.Add(predicate);
+            return styler;
+        }
+
+        /// <summary>
+        ///  Defines a style builder for <see cref="IFinancialSeries{TDrawingContext}"/> objects.
+        /// </summary>
+        /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
+        /// <param name="styler">The styler.</param>
+        /// <param name="predicate">The predicate.</param>
+        /// <returns></returns>
+        public static VisualsStyle<TDrawingContext> HasRuleForFinancialSeries<TDrawingContext>(
+            this VisualsStyle<TDrawingContext> styler,
+            Action<IFinancialSeries<TDrawingContext>> predicate)
+            where TDrawingContext : DrawingContext
+        {
+            styler.FinancialSeriesBuilder.Add(predicate);
             return styler;
         }
     }

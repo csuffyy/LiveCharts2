@@ -16,7 +16,15 @@
             "Lines/Custom",
             "Lines/Zoom",
 
+            "StepLines/Basic",
+            "StepLines/AutoUpdate",
+            "StepLines/Properties",
+            "StepLines/Area",
+            "StepLines/Custom",
+            "StepLines/Zoom",
+
             "StackedArea/Basic",
+            "StackedArea/StepArea",
 
             "Bars/Basic",
             "Bars/AutoUpdate",
@@ -33,23 +41,33 @@
 
             "Pies/Basic",
             "Pies/AutoUpdate",
+            "Pies/Processing",
             "Pies/Doughnut",
             "Pies/Pushout",
             "Pies/Custom",
             "Pies/NightingaleRose",
+            "Pies/Gauges",
+            //"Pies/Gauge",
 
             "Scatter/Basic",
+            "Scatter/Bubbles",
             "Scatter/AutoUpdate",
             "Scatter/Custom",
+
+            "Financial/BasicCandlesticks",
+
+            "Heat/Basic",
 
             "Axes/ColorsAndPosition",
             "Axes/LabelsFormat",
             "Axes/NamedLabels",
             "Axes/LabelsRotation",
             "Axes/Multiple",
+            "Axes/Shared",
             "Axes/DateTimeScaled",
             "Axes/Logaritmic",
 
+            "General/Sections",
             "General/Tooltips",
             "General/Legends",
             "General/Animations",

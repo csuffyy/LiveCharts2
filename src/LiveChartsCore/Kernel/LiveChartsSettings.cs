@@ -26,6 +26,7 @@ using System;
 using System.Collections.Generic;
 using LiveChartsCore.Measure;
 using LiveChartsCore.Themes;
+using LiveChartsCore.Kernel.Sketches;
 
 namespace LiveChartsCore.Kernel
 {
@@ -100,7 +101,24 @@ namespace LiveChartsCore.Kernel
         /// <value>
         /// The default tooltip finding strategy.
         /// </value>
-        public TooltipFindingStrategy DefaultTooltipFindingStrategy { get; set; } = TooltipFindingStrategy.CompareOnlyX;
+        public TooltipFindingStrategy DefaultTooltipFindingStrategy { get; set; } = TooltipFindingStrategy.Automatic;
+
+        /// <summary>
+        /// Gets the theme identifier.
+        /// </summary>
+        /// <value>
+        /// The theme identifier.
+        /// </value>
+        public object ThemeId { get; private set; } = new object();
+
+        /// <summary>
+        /// Gets the axis provider.
+        /// </summary>
+        /// <value>
+        /// The axis provider.
+        /// </value>
+        internal Func<IAxis> AxisProvider { get; set; } =
+            () => throw new NotImplementedException($"{nameof(AxisProvider)} is not defined yet.");
 
         /// <summary>
         /// Adds or replaces a mapping for a given type, the mapper defines how a type is mapped to a<see cref="ChartPoint"/> instance,
@@ -130,6 +148,12 @@ namespace LiveChartsCore.Kernel
             where TDrawingContext : DrawingContext
         {
             _currentFactory = factory;
+            return this;
+        }
+
+        internal LiveChartsSettings HasAxisProvider(Func<IAxis> provider)
+        {
+            AxisProvider = provider;
             return this;
         }
 
@@ -174,7 +198,6 @@ namespace LiveChartsCore.Kernel
             return this;
         }
 
-
         /// <summary>
         /// Withes the default zoom mode.
         /// </summary>
@@ -212,6 +235,7 @@ namespace LiveChartsCore.Kernel
                 _seriesStyleBuilder[typeof(TDrawingContext)] = stylesBuilder;
             }
 
+            ThemeId = new object();
             var sb = (Theme<TDrawingContext>)stylesBuilder;
             builder(sb);
 
@@ -462,6 +486,19 @@ namespace LiveChartsCore.Kernel
                      point.IsNull = false;
                      point.PrimaryValue = model.Value.Value;
                      point.SecondaryValue = model.DateTime.Ticks;
+                 })
+                 .HasMap<FinancialPoint>((model, point) =>
+                 {
+                     if (model == null)
+                         throw new Exception(
+                             $"A {nameof(DateTimePointF)} can not be null, instead set to null the " +
+                             $"{nameof(DateTimePointF.Value)} property.");
+
+                     point.PrimaryValue = (float)model.High;
+                     point.SecondaryValue = model.Date.Ticks;
+                     point.TertiaryValue = (float)model.Open;
+                     point.QuaternaryValue = (float)model.Close;
+                     point.QuinaryValue = (float)model.Low;
                  });
         }
     }

@@ -1,4 +1,7 @@
-﻿using LiveChartsCore.SkiaSharpView.WinForms;
+﻿using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.WinForms;
+using System;
 using System.Windows.Forms;
 using ViewModelsSamples.Bars.Basic;
 
@@ -8,6 +11,9 @@ namespace WinFormsSample.Bars.Basic
     {
         private readonly CartesianChart cartesianChart;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="View"/> class.
+        /// </summary>
         public View()
         {
             InitializeComponent();
@@ -15,7 +21,7 @@ namespace WinFormsSample.Bars.Basic
 
             var viewModel = new ViewModel();
 
-            cartesianChart = new CartesianChart
+            var cartesianChart = new CartesianChart
             {
                 Series = viewModel.Series,
 

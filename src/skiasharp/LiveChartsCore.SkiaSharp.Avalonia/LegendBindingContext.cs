@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 using Avalonia.Media;
-using LiveChartsCore.Kernel;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -78,7 +77,7 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
         /// <value>
         /// The text brush.
         /// </value>
-        public SolidColorBrush TextBrush { get; set; } = new SolidColorBrush(Color.FromRgb(35, 35, 35));
+        public IBrush TextBrush { get; set; } = new SolidColorBrush(Color.FromRgb(35, 35, 35));
 
         /// <summary>
         /// Gets or sets the background.

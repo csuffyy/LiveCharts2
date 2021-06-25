@@ -46,7 +46,7 @@ namespace LiveChartsCore.Drawing
         /// </summary>
         /// <param name="easingFunction">The easing function.</param>
         /// <param name="duration">The duration.</param>
-        public Animation(Func<float, float> easingFunction, TimeSpan duration)
+        public Animation(Func<float, float>? easingFunction, TimeSpan duration)
         {
             EasingFunction = easingFunction;
             _duration = (long)duration.TotalMilliseconds;
@@ -92,7 +92,7 @@ namespace LiveChartsCore.Drawing
         /// <summary>
         /// Gets or sets the easing function.
         /// </summary>
-        public Func<float, float> EasingFunction { get; set; }
+        public Func<float, float>? EasingFunction { get; set; }
 
         /// <summary>
         /// Gets or sets the duration of the transition in Milliseconds.
@@ -110,7 +110,7 @@ namespace LiveChartsCore.Drawing
         /// </summary>
         /// <param name="easing">The easing.</param>
         /// <returns>The animation instance</returns>
-        public Animation WithEasingFunction(Func<float, float> easing)
+        public Animation WithEasingFunction(Func<float, float>? easing)
         {
             EasingFunction = easing;
             return this;

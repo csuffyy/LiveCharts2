@@ -22,6 +22,7 @@
 
 using LiveChartsCore.Drawing;
 using LiveChartsCore.Drawing.Common;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.Measure;
 using System;
 using System.Collections.Generic;
@@ -42,9 +43,10 @@ namespace LiveChartsCore.Kernel
         /// <param name="foundPoints"></param>
         /// <param name="position"></param>
         /// <param name="tooltipSize"></param>
+        /// <param name="chartSize"></param>
         /// <returns></returns>
         public static PointF? GetCartesianTooltipLocation(
-            this IEnumerable<TooltipPoint> foundPoints, TooltipPosition position, SizeF tooltipSize)
+            this IEnumerable<TooltipPoint> foundPoints, TooltipPosition position, SizeF tooltipSize, SizeF chartSize)
         {
             var count = 0f;
 
@@ -58,6 +60,10 @@ namespace LiveChartsCore.Kernel
             }
 
             if (count == 0) return null;
+
+            if (placementContext.MostBottom > chartSize.Height - tooltipSize.Height)
+                placementContext.MostBottom = chartSize.Height - tooltipSize.Height;
+            if (placementContext.MostTop < 0) placementContext.MostTop = 0;
 
             var avrgX = (placementContext.MostRight + placementContext.MostLeft) / 2f - tooltipSize.Width * 0.5f;
             var avrgY = (placementContext.MostTop + placementContext.MostBottom) / 2f - tooltipSize.Height * 0.5f;
@@ -134,12 +140,7 @@ namespace LiveChartsCore.Kernel
             var magnitude = Math.Pow(10, Math.Floor(Math.Log(minimum) / Math.Log(10)));
 
             var residual = minimum / magnitude;
-            double tick;
-
-            if (residual > 5) tick = 10 * magnitude;
-            else if (residual > 2) tick = 5 * magnitude;
-            else tick = residual > 1 ? 2 * magnitude : magnitude;
-
+            var tick = residual > 5 ? 10 * magnitude : residual > 2 ? 5 * magnitude : residual > 1 ? 2 * magnitude : magnitude;
             return new AxisTick { Value = tick, Magnitude = magnitude };
         }
 
@@ -178,7 +179,7 @@ namespace LiveChartsCore.Kernel
         /// </returns>
         public static bool IsColumnSeries(this ISeries series)
         {
-            return (series.SeriesProperties & (SeriesProperties.Bar | SeriesProperties.VerticalOrientation)) != 0;
+            return (series.SeriesProperties & (SeriesProperties.Bar | SeriesProperties.PrimaryAxisVerticalOrientation)) != 0;
         }
 
         /// <summary>
@@ -190,7 +191,7 @@ namespace LiveChartsCore.Kernel
         /// </returns>
         public static bool IsRowSeries(this ISeries series)
         {
-            return (series.SeriesProperties & (SeriesProperties.Bar | SeriesProperties.HorizontalOrientation)) != 0;
+            return (series.SeriesProperties & (SeriesProperties.Bar | SeriesProperties.PrimaryAxisHorizontalOrientation)) != 0;
         }
 
         /// <summary>
@@ -214,7 +215,7 @@ namespace LiveChartsCore.Kernel
         /// </returns>
         public static bool IsVerticalSeries(this ISeries series)
         {
-            return (series.SeriesProperties & (SeriesProperties.VerticalOrientation)) != 0;
+            return (series.SeriesProperties & (SeriesProperties.PrimaryAxisVerticalOrientation)) != 0;
         }
 
         /// <summary>
@@ -226,7 +227,7 @@ namespace LiveChartsCore.Kernel
         /// </returns>
         public static bool IsHorizontalSeries(this ISeries series)
         {
-            return (series.SeriesProperties & (SeriesProperties.HorizontalOrientation)) != 0;
+            return (series.SeriesProperties & (SeriesProperties.PrimaryAxisHorizontalOrientation)) != 0;
         }
 
         /// <summary>

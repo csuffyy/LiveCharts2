@@ -29,6 +29,12 @@ using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Collections.Generic;
+using Brush = System.Windows.Media.Brush;
+using FontFamily = System.Windows.Media.FontFamily;
+using FontStyle = System.Windows.FontStyle;
+using LiveChartsCore.Kernel.Events;
+using LiveChartsCore.Kernel.Sketches;
 
 namespace LiveChartsCore.SkiaSharpView.WPF
 {
@@ -57,9 +63,6 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// </summary>
         protected IChartTooltip<SkiaSharpDrawingContext>? tooltip;
 
-        private readonly ActionThrottler _mouseMoveThrottler;
-        private PointF _mousePosition = new();
-
         #endregion
 
         /// <summary>
@@ -78,7 +81,7 @@ namespace LiveChartsCore.SkiaSharpView.WPF
 
             SizeChanged += OnSizeChanged;
             MouseMove += OnMouseMove;
-            _mouseMoveThrottler = new ActionThrottler(MouseMoveThrottlerUnlocked, TimeSpan.FromMilliseconds(10));
+            MouseLeave += OnMouseLeave;
         }
 
         #region dependency properties
@@ -131,14 +134,6 @@ namespace LiveChartsCore.SkiaSharpView.WPF
                new PropertyMetadata(LiveCharts.CurrentSettings.DefaultTooltipPosition, OnDependencyPropertyChanged));
 
         /// <summary>
-        /// The tool tip finding strategy property
-        /// </summary>
-        public static readonly DependencyProperty TooltipFindingStrategyProperty =
-            DependencyProperty.Register(
-                nameof(TooltipFindingStrategy), typeof(TooltipFindingStrategy), typeof(Chart),
-                new PropertyMetadata(LiveCharts.CurrentSettings.DefaultTooltipFindingStrategy, OnDependencyPropertyChanged));
-
-        /// <summary>
         /// The tool tip background property
         /// </summary>
         public static readonly DependencyProperty TooltipBackgroundProperty =
@@ -157,9 +152,9 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// <summary>
         /// The tool tip text color property
         /// </summary>
-        public static readonly DependencyProperty TooltipTextColorProperty =
+        public static readonly DependencyProperty TooltipTextBrushProperty =
            DependencyProperty.Register(
-               nameof(TooltipTextColor), typeof(SolidColorBrush), typeof(Chart),
+               nameof(TooltipTextBrush), typeof(SolidColorBrush), typeof(Chart),
                new PropertyMetadata(new SolidColorBrush(System.Windows.Media.Color.FromRgb(35, 35, 35)), OnDependencyPropertyChanged));
 
         /// <summary>
@@ -211,9 +206,17 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// <summary>
         /// The legend text color property
         /// </summary>
-        public static readonly DependencyProperty LegendTextColorProperty =
+        public static readonly DependencyProperty LegendTextBrushProperty =
            DependencyProperty.Register(
-               nameof(LegendTextColor), typeof(SolidColorBrush), typeof(Chart),
+               nameof(LegendTextBrush), typeof(SolidColorBrush), typeof(Chart),
+               new PropertyMetadata(new SolidColorBrush(System.Windows.Media.Color.FromRgb(35, 35, 35)), OnDependencyPropertyChanged));
+
+        /// <summary>
+        /// The legend background property
+        /// </summary>
+        public static readonly DependencyProperty LegendBackgroundProperty =
+           DependencyProperty.Register(
+               nameof(LegendBackground), typeof(SolidColorBrush), typeof(Chart),
                new PropertyMetadata(new SolidColorBrush(System.Windows.Media.Color.FromRgb(35, 35, 35)), OnDependencyPropertyChanged));
 
         /// <summary>
@@ -256,14 +259,30 @@ namespace LiveChartsCore.SkiaSharpView.WPF
 
         #endregion
 
+        #region events
+
+        /// <inheritdoc cref="IChartView{TDrawingContext}.Measuring" />
+        public event ChartEventHandler<SkiaSharpDrawingContext>? Measuring;
+
+        /// <inheritdoc cref="IChartView{TDrawingContext}.UpdateStarted" />
+        public event ChartEventHandler<SkiaSharpDrawingContext>? UpdateStarted;
+
+        /// <inheritdoc cref="IChartView{TDrawingContext}.UpdateFinished" />
+        public event ChartEventHandler<SkiaSharpDrawingContext>? UpdateFinished;
+
+        #endregion
+
         #region properties
+
+        /// <inheritdoc cref="IChartView.CoreChart" />
+        public IChart CoreChart => core ?? throw new Exception("Core not set yet.");
 
         System.Drawing.Color IChartView.BackColor
         {
             get => Background is not SolidColorBrush b
                     ? new System.Drawing.Color()
                     : System.Drawing.Color.FromArgb(b.Color.A, b.Color.R, b.Color.G, b.Color.B);
-            set => Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(value.A, value.R, value.G, value.B));
+            set => SetValueOrCurrentValue(BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromArgb(value.A, value.R, value.G, value.B)));
         }
 
         /// <inheritdoc cref="IChartView.DrawMargin" />
@@ -272,6 +291,13 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             get => (Margin)GetValue(DrawMarginProperty);
             set => SetValue(DrawMarginProperty, value);
         }
+
+        Margin? IChartView.DrawMargin
+        {
+            get => DrawMargin;
+            set => SetValueOrCurrentValue(DrawMarginProperty, value);
+        }
+
         SizeF IChartView.ControlSize => canvas == null
                     ? throw new Exception("Canvas not found")
                     : (new() { Width = (float)canvas.ActualWidth, Height = (float)canvas.ActualHeight });
@@ -286,11 +312,23 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             set => SetValue(AnimationsSpeedProperty, value);
         }
 
+        TimeSpan IChartView.AnimationsSpeed
+        {
+            get => AnimationsSpeed;
+            set => SetValueOrCurrentValue(AnimationsSpeedProperty, value);
+        }
+
         /// <inheritdoc cref="IChartView.EasingFunction" />
         public Func<float, float> EasingFunction
         {
             get => (Func<float, float>)GetValue(EasingFunctionProperty);
             set => SetValue(EasingFunctionProperty, value);
+        }
+
+        Func<float, float>? IChartView.EasingFunction
+        {
+            get => EasingFunction;
+            set => SetValueOrCurrentValue(EasingFunctionProperty, value);
         }
 
         /// <inheritdoc cref="IChartView.LegendPosition" />
@@ -300,11 +338,23 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             set => SetValue(LegendPositionProperty, value);
         }
 
+        LegendPosition IChartView.LegendPosition
+        {
+            get => LegendPosition;
+            set => SetValueOrCurrentValue(LegendPositionProperty, value);
+        }
+
         /// <inheritdoc cref="IChartView.LegendOrientation" />
         public LegendOrientation LegendOrientation
         {
             get => (LegendOrientation)GetValue(LegendOrientationProperty);
             set => SetValue(LegendOrientationProperty, value);
+        }
+
+        LegendOrientation IChartView.LegendOrientation
+        {
+            get => LegendOrientation;
+            set => SetValueOrCurrentValue(LegendOrientationProperty, value);
         }
 
         /// <inheritdoc cref="IChartView.TooltipPosition" />
@@ -314,11 +364,10 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             set => SetValue(TooltipPositionProperty, value);
         }
 
-        /// <inheritdoc cref="IChartView.TooltipFindingStrategy" />
-        public TooltipFindingStrategy TooltipFindingStrategy
+        TooltipPosition IChartView.TooltipPosition
         {
-            get => (TooltipFindingStrategy)GetValue(TooltipFindingStrategyProperty);
-            set => SetValue(TooltipFindingStrategyProperty, value);
+            get => TooltipPosition;
+            set => SetValueOrCurrentValue(TooltipPositionProperty, value);
         }
 
         /// <summary>
@@ -363,10 +412,10 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// <value>
         /// The color of the tool tip text.
         /// </value>
-        public SolidColorBrush TooltipTextColor
+        public SolidColorBrush TooltipTextBrush
         {
-            get => (SolidColorBrush)GetValue(TooltipTextColorProperty);
-            set => SetValue(TooltipTextColorProperty, value);
+            get => (SolidColorBrush)GetValue(TooltipTextBrushProperty);
+            set => SetValue(TooltipTextBrushProperty, value);
         }
 
         /// <summary>
@@ -450,10 +499,22 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// <value>
         /// The color of the legend text.
         /// </value>
-        public SolidColorBrush LegendTextColor
+        public SolidColorBrush LegendTextBrush
         {
-            get => (SolidColorBrush)GetValue(LegendTextColorProperty);
-            set => SetValue(LegendTextColorProperty, value);
+            get => (SolidColorBrush)GetValue(LegendTextBrushProperty);
+            set => SetValue(LegendTextBrushProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the legend background.
+        /// </summary>
+        /// <value>
+        /// The legend t background.
+        /// </value>
+        public SolidColorBrush LegendBackground
+        {
+            get => (SolidColorBrush)GetValue(LegendBackgroundProperty);
+            set => SetValue(LegendBackgroundProperty, value);
         }
 
         /// <summary>
@@ -510,6 +571,20 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// <inheritdoc cref="IChartView{TDrawingContext}.PointStates" />
         public PointStatesDictionary<SkiaSharpDrawingContext> PointStates { get; set; } = new();
 
+        /// <inheritdoc cref="IChartView{TDrawingContext}.AutoUpdateEnaled" />
+        public bool AutoUpdateEnaled { get; set; } = true;
+
+        /// <inheritdoc cref="IChartView.UpdaterThrottler" />
+        public TimeSpan UpdaterThrottler
+        {
+            get => core?.UpdaterThrottler ?? throw new Exception("core not set yet.");
+            set
+            {
+                if (core == null) throw new Exception("core not set yet.");
+                core.UpdaterThrottler = value;
+            }
+        }
+
         #endregion
 
         /// <inheritdoc cref="OnApplyTemplate" />
@@ -524,6 +599,41 @@ namespace LiveChartsCore.SkiaSharpView.WPF
 
             this.canvas = canvas;
             InitializeCore();
+
+            if (core == null) throw new Exception("Core not found!");
+            core.Measuring += OnCoreMeasuring;
+            core.UpdateStarted += OnCoreUpdateStarted;
+            core.UpdateFinished += OnCoreUpdateFinished;
+        }
+
+        /// <inheritdoc cref="IChartView{TDrawingContext}.ShowTooltip(IEnumerable{TooltipPoint})"/>
+        public void ShowTooltip(IEnumerable<TooltipPoint> points)
+        {
+            if (tooltip == null || core == null) return;
+
+            tooltip.Show(points, core);
+        }
+
+        /// <inheritdoc cref="IChartView{TDrawingContext}.HideTooltip"/>
+        public void HideTooltip()
+        {
+            if (tooltip == null || core == null) return;
+
+            foreach (var state in PointStates.GetStates())
+            {
+                if (!state.IsHoverState) continue;
+                if (state.Fill != null) state.Fill.ClearGeometriesFromPaintTask(core.Canvas);
+                if (state.Stroke != null) state.Stroke.ClearGeometriesFromPaintTask(core.Canvas);
+            }
+
+            tooltip.Hide();
+        }
+
+        /// <inheritdoc cref="IChartView.SetTooltipStyle(System.Drawing.Color, System.Drawing.Color)"/>
+        public void SetTooltipStyle(System.Drawing.Color background, System.Drawing.Color textColor)
+        {
+            TooltipBackground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(background.A, background.R, background.G, background.B));
+            TooltipTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(textColor.A, textColor.R, textColor.G, textColor.B));
         }
 
         /// <summary>
@@ -553,15 +663,42 @@ namespace LiveChartsCore.SkiaSharpView.WPF
 
         private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            var p = e.GetPosition(canvas);
-            _mousePosition = new PointF((float)p.X, (float)p.Y);
-            _mouseMoveThrottler.Call();
+            var p = e.GetPosition(this);
+            core?.InvokePointerMove(new PointF((float)p.X, (float)p.Y));
         }
 
-        private void MouseMoveThrottlerUnlocked()
+        private void OnCoreUpdateFinished(IChartView<SkiaSharpDrawingContext> chart)
         {
-            if (core == null || tooltip == null || TooltipPosition == TooltipPosition.Hidden) return;
-            tooltip.Show(core.FindPointsNearTo(_mousePosition), core);
+            UpdateFinished?.Invoke(this);
+        }
+
+        private void OnCoreUpdateStarted(IChartView<SkiaSharpDrawingContext> chart)
+        {
+            UpdateStarted?.Invoke(this);
+        }
+
+        private void OnCoreMeasuring(IChartView<SkiaSharpDrawingContext> chart)
+        {
+            Measuring?.Invoke(this);
+        }
+
+        /// <summary>
+        /// Sets the local value of a dependency property, specified by its dependency property identifier.
+        /// If the object has not yet finished initializing, does so without changing its value source.
+        /// </summary>
+        /// <param name="dp">The identifier of the dependency property to set.</param>
+        /// <param name="value">The new local value.</param>
+        protected void SetValueOrCurrentValue(DependencyProperty dp, object? value)
+        {
+            if (IsInitialized)
+                SetValue(dp, value);
+            else
+                SetCurrentValue(dp, value);
+        }
+
+        private void OnMouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            HideTooltip();
         }
     }
 }

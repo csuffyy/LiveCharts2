@@ -36,7 +36,8 @@ namespace LiveChartsCore.Kernel
         /// </summary>
         /// <param name="stroke">The stroke.</param>
         /// <param name="fill">The fill.</param>
-        public StrokeAndFillDrawable(IDrawableTask<TDrawingContext>? stroke, IDrawableTask<TDrawingContext>? fill)
+        /// <param name="isHoverState">is hover state?.</param>
+        public StrokeAndFillDrawable(IPaintTask<TDrawingContext>? stroke, IPaintTask<TDrawingContext>? fill, bool isHoverState = false)
         {
             Stroke = stroke;
             if (stroke != null)
@@ -52,6 +53,7 @@ namespace LiveChartsCore.Kernel
                 fill.IsFill = true;
                 fill.StrokeThickness = 0;
             }
+            IsHoverState = isHoverState;
         }
 
         /// <summary>
@@ -60,7 +62,7 @@ namespace LiveChartsCore.Kernel
         /// <value>
         /// The stroke.
         /// </value>
-        public IDrawableTask<TDrawingContext>? Stroke { get; } = null;
+        public IPaintTask<TDrawingContext>? Stroke { get; } = null;
 
         /// <summary>
         /// Gets the fill.
@@ -68,6 +70,14 @@ namespace LiveChartsCore.Kernel
         /// <value>
         /// The fill.
         /// </value>
-        public IDrawableTask<TDrawingContext>? Fill { get; } = null;
+        public IPaintTask<TDrawingContext>? Fill { get; } = null;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this instance is hover state.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if this instance is hover state; otherwise, <c>false</c>.
+        /// </value>
+        public bool IsHoverState { get; set; }
     }
 }

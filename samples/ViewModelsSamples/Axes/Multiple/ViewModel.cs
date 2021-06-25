@@ -1,4 +1,5 @@
-﻿using LiveChartsCore.Kernel;
+﻿using LiveChartsCore;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using SkiaSharp;
@@ -20,7 +21,7 @@ namespace ViewModelsSamples.Axes.Multiple
                 new LineSeries<double>
                 {
                     LineSmoothness = 1,
-                    Name = "tens",
+                    Name = "Tens",
                     Values = new ObservableCollection<double> { 14, 13, 14, 15, 17 },
                     Stroke = new SolidColorPaintTask(blue, 2),
                     GeometryStroke = new SolidColorPaintTask(blue, 2),
@@ -29,7 +30,7 @@ namespace ViewModelsSamples.Axes.Multiple
                 },
                 new LineSeries<double>
                 {
-                    Name = "tens 2",
+                    Name = "Tens 2",
                     Values = new ObservableCollection<double> { 11, 12, 13, 10, 13 },
                     Stroke = new SolidColorPaintTask(blue, 2),
                     GeometryStroke = new SolidColorPaintTask(blue, 2),
@@ -38,7 +39,7 @@ namespace ViewModelsSamples.Axes.Multiple
                 },
                 new LineSeries<double>
                 {
-                    Name = "hundreds",
+                    Name = "Hundreds",
                     Values = new ObservableCollection<double> { 533, 586, 425, 579, 518 },
                     Stroke = new SolidColorPaintTask(red, 2),
                     GeometryStroke = new SolidColorPaintTask(red, 2),
@@ -47,7 +48,7 @@ namespace ViewModelsSamples.Axes.Multiple
                 },
                 new LineSeries<double>
                 {
-                    Name = "thousands",
+                    Name = "Thousands",
                     Values = new ObservableCollection<double> { 5493, 7843, 4368, 9018, 3902 },
                     Stroke = new SolidColorPaintTask(yellow, 2),
                     GeometryStroke = new SolidColorPaintTask(yellow, 2),
@@ -60,17 +61,17 @@ namespace ViewModelsSamples.Axes.Multiple
             {
                 new Axis // the "units" and "tens" series will be scaled on this axis
                 {
-                    TextBrush = new SolidColorPaintTask(blue)
+                    LabelsPaint = new SolidColorPaintTask(blue)
                 },
                 new Axis // the "hundreds" series will be scaled on this axis
                 {
-                    TextBrush = new SolidColorPaintTask(red),
+                    LabelsPaint = new SolidColorPaintTask(red),
                     ShowSeparatorLines = false,
                     Position = LiveChartsCore.Measure.AxisPosition.End
                 },
                 new Axis() // the "thousands" series will be scaled on this axis
                 {
-                    TextBrush = new SolidColorPaintTask(yellow),
+                    LabelsPaint = new SolidColorPaintTask(yellow),
                     ShowSeparatorLines = false,
                     Position = LiveChartsCore.Measure.AxisPosition.End
                 }

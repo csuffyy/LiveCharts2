@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
 using System.Collections.Generic;
@@ -44,8 +45,8 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         public DefaultTooltip()
         {
             InitializeComponent();
-            PopupAnimation = PopupAnimation.Fade;
-            Placement = PlacementMode.Relative;
+            SetCurrentValue(PopupAnimationProperty, PopupAnimation.Fade);
+            SetCurrentValue(PlacementProperty, PlacementMode.Relative);
             _defaultTempalte = (DataTemplate)FindResource("defaultTemplate");
         }
 
@@ -267,7 +268,7 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             if (chart is CartesianChart<SkiaSharpDrawingContext>)
             {
                 location = tooltipPoints.GetCartesianTooltipLocation(
-                    chart.TooltipPosition, new System.Drawing.SizeF((float)border.ActualWidth, (float)border.ActualHeight));
+                    chart.TooltipPosition, new System.Drawing.SizeF((float)border.ActualWidth, (float)border.ActualHeight), chart.ControlSize);
             }
             if (chart is PieChart<SkiaSharpDrawingContext>)
             {
@@ -290,7 +291,7 @@ namespace LiveChartsCore.SkiaSharpView.WPF
 
             Background = wpfChart.TooltipBackground;
             FontFamily = wpfChart.TooltipFontFamily;
-            TextColor = wpfChart.TooltipTextColor;
+            TextColor = wpfChart.TooltipTextBrush;
             FontSize = wpfChart.TooltipFontSize;
             FontWeight = wpfChart.TooltipFontWeight;
             FontStyle = wpfChart.TooltipFontStyle;
@@ -311,6 +312,11 @@ namespace LiveChartsCore.SkiaSharpView.WPF
             }
 
             wpfChart.CoreCanvas.Invalidate();
+        }
+
+        void IChartTooltip<SkiaSharpDrawingContext>.Hide()
+        {
+            IsOpen = false;
         }
     }
 }

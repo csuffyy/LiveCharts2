@@ -23,7 +23,7 @@
 namespace LiveChartsCore.Drawing
 {
     /// <summary>
-    /// Defines a douggnut visual chart point.
+    /// Defines a dough nut visual chart point.
     /// </summary>
     /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
     /// <seealso cref="IDoughnutGeometry{TDrawingContext}" />

@@ -1,4 +1,4 @@
-﻿using LiveChartsCore.Kernel;
+﻿using LiveChartsCore;
 using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
@@ -15,7 +15,7 @@ namespace ViewModelsSamples.StackedBars.Basic
             {
                 Values = new List<int> { 3, 5, 3, 2, 5, 4, 2 },
                 Stroke = null,
-                DataLabelsDrawableTask = new SolidColorPaintTask(new SKColor(45, 45, 45)),
+                DataLabelsPaint = new SolidColorPaintTask(new SKColor(45, 45, 45)),
                 DataLabelsSize = 14,
                 DataLabelsPosition = DataLabelsPosition.Middle
             },
@@ -23,7 +23,7 @@ namespace ViewModelsSamples.StackedBars.Basic
             {
                 Values = new List<int> { 4, 2, 3, 2, 3, 4, 2 },
                 Stroke = null,
-                DataLabelsDrawableTask = new SolidColorPaintTask(new SKColor(45, 45, 45)),
+                DataLabelsPaint = new SolidColorPaintTask(new SKColor(45, 45, 45)),
                 DataLabelsSize = 14,
                 DataLabelsPosition = DataLabelsPosition.Middle
             },
@@ -31,7 +31,7 @@ namespace ViewModelsSamples.StackedBars.Basic
             {
                 Values = new List<int> { -4, 6, 6, 5, 4, 3 , 2 },
                 Stroke = null,
-                DataLabelsDrawableTask = new SolidColorPaintTask(new SKColor(45, 45, 45)),
+                DataLabelsPaint = new SolidColorPaintTask(new SKColor(45, 45, 45)),
                 DataLabelsSize = 14,
                 DataLabelsPosition = DataLabelsPosition.Middle
             }

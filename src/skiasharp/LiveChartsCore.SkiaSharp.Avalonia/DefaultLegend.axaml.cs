@@ -26,7 +26,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Media;
-using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
@@ -40,18 +40,18 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
     /// </summary>
     public class DefaultLegend : UserControl, IChartLegend<SkiaSharpDrawingContext>
     {
-        private readonly DataTemplate defaultTemplate;
+        private readonly DataTemplate _defaultTemplate;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultLegend"/> class.
         /// </summary>
-        /// <exception cref="Exception">default tempalte not found</exception>
+        /// <exception cref="Exception">default template not found</exception>
         public DefaultLegend()
         {
             InitializeComponent();
             var t = (DataTemplate?)Resources["defaultTemplate"];
-            if (t == null) throw new Exception("default tempalte not found");
-            defaultTemplate = t;
+            if (t == null) throw new Exception("default template not found");
+            _defaultTemplate = t;
         }
 
         /// <summary>
@@ -88,7 +88,15 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
         /// <value>
         /// The text brush.
         /// </value>
-        public SolidColorBrush TextBrush { get; set; } = new SolidColorBrush(Color.FromRgb(35, 35, 35));
+        public IBrush TextBrush { get; set; } = new SolidColorBrush(Color.FromRgb(35, 35, 35));
+
+        /// <summary>
+        /// Gets or sets the background brush.
+        /// </summary>
+        /// <value>
+        /// The background brush.
+        /// </value>
+        public IBrush? BackgroundBrush { get; set; } = null;
 
         /// <summary>
         /// Gets or sets the orientation.
@@ -163,6 +171,7 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
             FontWeight = avaloniaChart.LegendFontWeight;
             FontStyle = avaloniaChart.LegendFontStyle;
             TextBrush = avaloniaChart.LegendTextBrush;
+            BackgroundBrush = avaloniaChart.LegendBackground;
 
             BuildContent();
             Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -173,12 +182,12 @@ namespace LiveChartsCore.SkiaSharpView.Avalonia
         /// </summary>
         protected void BuildContent()
         {
-            var template = CustomTemplate ?? defaultTemplate;
+            var template = CustomTemplate ?? _defaultTemplate;
             var model = new LegendBindingContext
             {
                 Series = Series,
                 FontFamily = FontFamily,
-                Background = Background,
+                Background = BackgroundBrush,
                 FontSize = FontSize,
                 FontStyle = FontStyle,
                 FontWeight = FontWeight,

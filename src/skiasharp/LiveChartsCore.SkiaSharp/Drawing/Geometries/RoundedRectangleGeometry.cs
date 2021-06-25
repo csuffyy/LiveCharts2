@@ -27,7 +27,7 @@ using SkiaSharp;
 namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries
 {
     /// <summary>
-    /// Defines a ropunded rectangle geometry.
+    /// Defines a rounded rectangle geometry.
     /// </summary>
     /// <seealso cref="SizedGeometry" />
     public class RoundedRectangleGeometry : SizedGeometry, IRoundedRectangleChartPoint<SkiaSharpDrawingContext>

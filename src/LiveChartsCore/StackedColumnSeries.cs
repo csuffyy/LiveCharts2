@@ -26,6 +26,9 @@ using System;
 using LiveChartsCore.Measure;
 using System.Collections.Generic;
 using System.Drawing;
+using LiveChartsCore.Kernel.Sketches;
+using LiveChartsCore.Kernel.Drawing;
+using LiveChartsCore.Kernel.Data;
 
 namespace LiveChartsCore
 {
@@ -46,35 +49,36 @@ namespace LiveChartsCore
         /// Initializes a new instance of the <see cref="StackedColumnSeries{TModel, TVisual, TLabel, TDrawingContext}"/> class.
         /// </summary>
         public StackedColumnSeries()
-            : base(SeriesProperties.Bar | SeriesProperties.VerticalOrientation | SeriesProperties.Stacked)
+            : base(
+                  SeriesProperties.Bar | SeriesProperties.PrimaryAxisVerticalOrientation | SeriesProperties.Stacked |
+                  SeriesProperties.Solid | SeriesProperties.PrefersXStrategyTooltips)
         {
-
+            DataPadding = new PointF(0, 1);
         }
 
-        /// <summary>
-        /// Measures this series.
-        /// </summary>
-        /// <param name="chart">The chart.</param>
-        /// <param name="secondaryAxis">The secondary axis.</param>
-        /// <param name="primaryAxis">The primary axis.</param>
-        /// <exception cref="NullReferenceException">Unexpected null stacker</exception>
-        public override void Measure(
-           CartesianChart<TDrawingContext> chart, IAxis<TDrawingContext> secondaryAxis, IAxis<TDrawingContext> primaryAxis)
+        /// <inheritdoc cref="ChartElement{TDrawingContext}.Measure(Chart{TDrawingContext})"/>
+        public override void Measure(Chart<TDrawingContext> chart)
         {
-            var drawLocation = chart.DrawMaringLocation;
-            var drawMarginSize = chart.DrawMarginSize;
+            var cartesianChart = (CartesianChart<TDrawingContext>)chart;
+            var primaryAxis = cartesianChart.YAxes[ScalesYAt];
+            var secondaryAxis = cartesianChart.XAxes[ScalesXAt];
+
+            var drawLocation = cartesianChart.DrawMarginLocation;
+            var drawMarginSize = cartesianChart.DrawMarginSize;
             var secondaryScale = new Scaler(drawLocation, drawMarginSize, secondaryAxis);
             var primaryScale = new Scaler(drawLocation, drawMarginSize, primaryAxis);
             var previousSecondaryScale =
                 secondaryAxis.PreviousDataBounds == null ? null : new Scaler(drawLocation, drawMarginSize, secondaryAxis);
 
             var uw = secondaryScale.ToPixels(1f) - secondaryScale.ToPixels(0f);
+
+            uw -= (float)GroupPadding;
+
             var uwm = 0.5f * uw;
-            var sw = Stroke?.StrokeThickness ?? 0;
             var p = primaryScale.ToPixels(pivot);
 
-            var pos = chart.SeriesContext.GetStackedColumnPostion(this);
-            var count = chart.SeriesContext.GetStackedColumnSeriesCount();
+            var pos = cartesianChart.SeriesContext.GetStackedColumnPostion(this);
+            var count = cartesianChart.SeriesContext.GetStackedColumnSeriesCount();
             var cp = 0f;
 
             if (count > 1)
@@ -94,32 +98,32 @@ namespace LiveChartsCore
             if (Fill != null)
             {
                 Fill.ZIndex = actualZIndex + 0.1;
-                Fill.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
-                chart.Canvas.AddDrawableTask(Fill);
+                Fill.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
+                cartesianChart.Canvas.AddDrawableTask(Fill);
             }
             if (Stroke != null)
             {
                 Stroke.ZIndex = actualZIndex + 0.2;
-                Stroke.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
-                chart.Canvas.AddDrawableTask(Stroke);
+                Stroke.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
+                cartesianChart.Canvas.AddDrawableTask(Stroke);
             }
-            if (DataLabelsDrawableTask != null)
+            if (DataLabelsPaint != null)
             {
-                DataLabelsDrawableTask.ZIndex = actualZIndex + 0.3;
-                DataLabelsDrawableTask.ClipRectangle = new RectangleF(drawLocation, drawMarginSize);
-                chart.Canvas.AddDrawableTask(DataLabelsDrawableTask);
+                DataLabelsPaint.ZIndex = actualZIndex + 0.3;
+                DataLabelsPaint.SetClipRectangle(cartesianChart.Canvas, new RectangleF(drawLocation, drawMarginSize));
+                cartesianChart.Canvas.AddDrawableTask(DataLabelsPaint);
             }
 
             var dls = (float)DataLabelsSize;
             var toDeletePoints = new HashSet<ChartPoint>(everFetched);
 
-            var stacker = chart.SeriesContext.GetStackPosition(this, GetStackGroup());
+            var stacker = cartesianChart.SeriesContext.GetStackPosition(this, GetStackGroup());
             if (stacker == null) throw new NullReferenceException("Unexpected null stacker");
 
             var rx = (float)Rx;
             var ry = (float)Ry;
 
-            foreach (var point in Fetch(chart))
+            foreach (var point in Fetch(cartesianChart))
             {
                 var visual = point.Context.Visual as TVisual;
                 var secondary = secondaryScale.ToPixels(point.SecondaryValue);
@@ -161,8 +165,8 @@ namespace LiveChartsCore
                     _ = everFetched.Add(point);
                 }
 
-                if (Fill != null) Fill.AddGeometyToPaintTask(visual);
-                if (Stroke != null) Stroke.AddGeometyToPaintTask(visual);
+                if (Fill != null) Fill.AddGeometryToPaintTask(cartesianChart.Canvas, visual);
+                if (Stroke != null) Stroke.AddGeometryToPaintTask(cartesianChart.Canvas, visual);
 
                 var sizedGeometry = visual;
 
@@ -184,28 +188,29 @@ namespace LiveChartsCore
                 OnPointMeasured(point);
                 _ = toDeletePoints.Remove(point);
 
-                if (DataLabelsDrawableTask != null)
+                if (DataLabelsPaint != null)
                 {
                     if (point.Context.Label is not TLabel label)
                     {
                         var l = new TLabel { X = secondary - uwm + cp, Y = p };
 
                         _ = l.TransitionateProperties(nameof(l.X), nameof(l.Y))
-                            .WithAnimation(a =>
-                                a.WithDuration(chart.AnimationsSpeed)
-                                .WithEasingFunction(chart.EasingFunction));
+                            .WithAnimation(animation =>
+                                animation
+                                    .WithDuration(AnimationsSpeed ?? cartesianChart.AnimationsSpeed)
+                                    .WithEasingFunction(EasingFunction ?? cartesianChart.EasingFunction));
 
                         l.CompleteAllTransitions();
                         label = l;
                         point.Context.Label = label;
-                        DataLabelsDrawableTask.AddGeometyToPaintTask(l);
                     }
 
-                    label.Text = DataLabelsFormatter(point);
+                    DataLabelsPaint.AddGeometryToPaintTask(cartesianChart.Canvas, label);
+                    label.Text = DataLabelsFormatter(new TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>(point));
                     label.TextSize = dls;
                     label.Padding = DataLabelsPadding;
                     var labelPosition = GetLabelPosition(
-                        x, primaryJ, uw, primaryI - primaryJ, label.Measure(DataLabelsDrawableTask), DataLabelsPosition,
+                        x, primaryJ, uw, primaryI - primaryJ, label.Measure(DataLabelsPaint), DataLabelsPosition,
                         SeriesProperties, point.PrimaryValue > Pivot);
                     label.X = labelPosition.X;
                     label.Y = labelPosition.Y;
@@ -214,7 +219,7 @@ namespace LiveChartsCore
 
             foreach (var point in toDeletePoints)
             {
-                if (point.Context.Chart != chart.View) continue;
+                if (point.Context.Chart != cartesianChart.View) continue;
                 SoftDeletePoint(point, primaryScale, secondaryScale);
                 _ = everFetched.Remove(point);
             }
@@ -227,36 +232,48 @@ namespace LiveChartsCore
         /// <param name="secondaryAxis">The secondary axis.</param>
         /// <param name="primaryAxis">The primary axis.</param>
         /// <returns></returns>
-        public override DimensionalBounds GetBounds(
+        public override SeriesBounds GetBounds(
          CartesianChart<TDrawingContext> chart, IAxis<TDrawingContext> secondaryAxis, IAxis<TDrawingContext> primaryAxis)
         {
-            var baseBounds = base.GetBounds(chart, secondaryAxis, primaryAxis);
+            var baseSeriesBounds = base.GetBounds(chart, secondaryAxis, primaryAxis);
 
-            var tick = primaryAxis.GetTick(chart.ControlSize, baseBounds.VisiblePrimaryBounds);
+            if (baseSeriesBounds.IsPrevious) return baseSeriesBounds;
+            var baseBounds = baseSeriesBounds.Bounds;
 
-            return new DimensionalBounds
-            {
-                SecondaryBounds = new Bounds
-                {
-                    Max = baseBounds.SecondaryBounds.Max + 0.5,
-                    Min = baseBounds.SecondaryBounds.Min - 0.5
-                },
-                PrimaryBounds = new Bounds
-                {
-                    Max = baseBounds.PrimaryBounds.Max + tick.Value,
-                    Min = baseBounds.PrimaryBounds.Min < 0 ? baseBounds.PrimaryBounds.Min - tick.Value : 0
-                },
-                VisibleSecondaryBounds = new Bounds
-                {
-                    Max = baseBounds.VisibleSecondaryBounds.Max + 0.5,
-                    Min = baseBounds.VisibleSecondaryBounds.Min - 0.5
-                },
-                VisiblePrimaryBounds = new Bounds
-                {
-                    Max = baseBounds.VisiblePrimaryBounds.Max + tick.Value,
-                    Min = baseBounds.VisiblePrimaryBounds.Min < 0 ? baseBounds.PrimaryBounds.Min - tick.Value : 0
-                },
-            };
+            var tickPrimary = primaryAxis.GetTick(chart.ControlSize, baseBounds.VisiblePrimaryBounds);
+            var tickSecondary = secondaryAxis.GetTick(chart.ControlSize, baseBounds.VisibleSecondaryBounds);
+
+            var ts = tickSecondary.Value * DataPadding.X;
+            var tp = tickPrimary.Value * DataPadding.Y;
+
+            return
+                new SeriesBounds(
+                    new DimensionalBounds
+                    {
+                        SecondaryBounds = new Bounds
+                        {
+                            Max = baseBounds.SecondaryBounds.Max + 0.5 * secondaryAxis.UnitWidth + ts,
+                            Min = baseBounds.SecondaryBounds.Min - 0.5 * secondaryAxis.UnitWidth - ts
+                        },
+                        PrimaryBounds = new Bounds
+                        {
+                            Max = baseBounds.PrimaryBounds.Max + tp,
+                            Min = baseBounds.PrimaryBounds.Min < 0 ? baseBounds.PrimaryBounds.Min - tp : 0
+                        },
+                        VisibleSecondaryBounds = new Bounds
+                        {
+                            Max = baseBounds.VisibleSecondaryBounds.Max + 0.5 * secondaryAxis.UnitWidth + ts,
+                            Min = baseBounds.VisibleSecondaryBounds.Min - 0.5 * secondaryAxis.UnitWidth - ts
+                        },
+                        VisiblePrimaryBounds = new Bounds
+                        {
+                            Max = baseBounds.VisiblePrimaryBounds.Max + tp,
+                            Min = baseBounds.VisiblePrimaryBounds.Min < 0 ? baseBounds.PrimaryBounds.Min - tp : 0
+                        },
+                        MinDeltaPrimary = baseBounds.MinDeltaPrimary,
+                        MinDeltaSecondary = baseBounds.MinDeltaSecondary
+                    },
+                    false);
         }
 
         /// <summary>
@@ -274,12 +291,17 @@ namespace LiveChartsCore
                 .TransitionateProperties(
                     nameof(visual.X),
                     nameof(visual.Width))
-                .WithAnimation(a => a.WithDuration(chart.AnimationsSpeed).WithEasingFunction(chart.EasingFunction));
+                .WithAnimation(animation =>
+                    animation
+                        .WithDuration(AnimationsSpeed ?? chart.AnimationsSpeed)
+                        .WithEasingFunction(EasingFunction ?? chart.EasingFunction));
 
             _ = visual
                 .TransitionateProperties(nameof(visual.Y), nameof(visual.Height))
-                .WithAnimation(a =>
-                    a.WithDuration((long)(chart.AnimationsSpeed.TotalMilliseconds * 1.5)).WithEasingFunction(elasticFunction));
+                .WithAnimation(animation =>
+                    animation
+                        .WithDuration(AnimationsSpeed ?? chart.AnimationsSpeed)
+                        .WithEasingFunction(EasingFunction ?? chart.EasingFunction));
         }
 
         /// <summary>
@@ -301,6 +323,14 @@ namespace LiveChartsCore
             visual.Y = p;
             visual.Height = 0;
             visual.RemoveOnCompleted = true;
+
+            if (dataProvider == null) throw new Exception("Data provider not found");
+            dataProvider.DisposePoint(point);
+            var label = (TLabel?)point.Context.Label;
+            if (label == null) return;
+
+            label.TextSize = 1;
+            label.RemoveOnCompleted = true;
         }
     }
 }

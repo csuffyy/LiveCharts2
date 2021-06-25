@@ -21,10 +21,12 @@
 // SOFTWARE.
 
 using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Timers;
 using Xamarin.Essentials;
 using Xamarin.Forms;
 using Xamarin.Forms.Xaml;
@@ -35,8 +37,10 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
     [XamlCompilation(XamlCompilationOptions.Compile)]
     public partial class DefaultTooltip : ContentView, IChartTooltip<SkiaSharpDrawingContext>
     {
-        private readonly DataTemplate defaultTemplate;
-        private readonly Dictionary<ChartPoint, object> activePoints = new();
+        private Chart<SkiaSharpDrawingContext> _chart;
+        private readonly DataTemplate _defaultTemplate;
+        private readonly Dictionary<ChartPoint, object> _activePoints = new();
+        private readonly Timer _closeTimer = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultTooltip"/> class.
@@ -44,14 +48,16 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         public DefaultTooltip()
         {
             InitializeComponent();
-            defaultTemplate = (DataTemplate)Resources["defaultTemplate"];
+            _defaultTemplate = (DataTemplate)Resources["defaultTemplate"];
+            _closeTimer.Interval = 3000;
+            _closeTimer.Elapsed += _closeTimer_Elapsed;
         }
 
         /// <summary>
-        /// Gets or sets the tooltip template.
+        /// Gets or sets the tool tip template.
         /// </summary>
         /// <value>
-        /// The tooltip template.
+        /// The tool tip template.
         /// </value>
         public DataTemplate? TooltipTemplate { get; set; }
 
@@ -69,7 +75,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The font family.
         /// </value>
-        public string? FontFamily { get; set; }
+        public string? TooltipFontFamily { get; set; }
 
         /// <summary>
         /// Gets or sets the size of the font.
@@ -77,7 +83,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The size of the font.
         /// </value>
-        public double FontSize { get; set; }
+        public double TooltipFontSize { get; set; }
 
         /// <summary>
         /// Gets or sets the color of the text.
@@ -85,7 +91,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The color of the text.
         /// </value>
-        public Color TextColor { get; set; }
+        public Color TooltipTextColor { get; set; }
 
         /// <summary>
         /// Gets or sets the font attributes.
@@ -93,7 +99,15 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The font attributes.
         /// </value>
-        public FontAttributes FontAttributes { get; set; }
+        public FontAttributes TooltipFontAttributes { get; set; }
+
+        /// <summary>
+        /// Gets or sets the color of the tool tip background.
+        /// </summary>
+        /// <value>
+        /// The color of the tool tip background.
+        /// </value>
+        public Color TooltipBackgroundColor { get; set; }
 
         void IChartTooltip<SkiaSharpDrawingContext>.Show(IEnumerable<TooltipPoint> tooltipPoints, Chart<SkiaSharpDrawingContext> chart)
         {
@@ -101,10 +115,10 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
 
             if (!tooltipPoints.Any())
             {
-                foreach (var key in activePoints.Keys.ToArray())
+                foreach (var key in _activePoints.Keys.ToArray())
                 {
                     key.RemoveFromHoverState();
-                    _ = activePoints.Remove(key);
+                    _ = _activePoints.Remove(key);
                 }
                 return;
             }
@@ -121,7 +135,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
             if (chart is CartesianChart<SkiaSharpDrawingContext>)
             {
                 location = tooltipPoints.GetCartesianTooltipLocation(
-                    chart.TooltipPosition, new System.Drawing.SizeF((float)size.Width, (float)size.Height));
+                    chart.TooltipPosition, new System.Drawing.SizeF((float)size.Width, (float)size.Height), chart.ControlSize);
             }
             if (chart is PieChart<SkiaSharpDrawingContext>)
             {
@@ -130,36 +144,44 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
             }
             if (location == null) throw new Exception("location not supported");
 
-            var template = mobileChart.TooltipTemplate ?? defaultTemplate;
+            IsVisible = true;
+            var template = mobileChart.TooltipTemplate ?? _defaultTemplate;
             if (TooltipTemplate != template) TooltipTemplate = template;
-            FontFamily = mobileChart.TooltipFontFamily;
-            TextColor = mobileChart.TooltipTextColor;
-            FontSize = mobileChart.TooltipFontSize;
-            FontAttributes = mobileChart.TooltipFontAttributes;
+            TooltipFontFamily = mobileChart.TooltipFontFamily;
+            TooltipTextColor = mobileChart.TooltipTextBrush;
+            TooltipFontSize = mobileChart.TooltipFontSize;
+            TooltipFontAttributes = mobileChart.TooltipFontAttributes;
+            TooltipBackgroundColor = mobileChart.TooltipBackground;
             BuildContent();
+            InvalidateLayout();
 
             _ = Measure(double.PositiveInfinity, double.PositiveInfinity);
             var chartSize = chart.ControlSize;
+            _chart = chart;
 
             AbsoluteLayout.SetLayoutBounds(
                 this,
                 new Rectangle(
-                    location.Value.X / chartSize.Width, location.Value.Y / chartSize.Height,
+                    location.Value.X / chartSize.Width,
+                    location.Value.Y / chartSize.Height,
                     AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
 
             var o = new object();
             foreach (var tooltipPoint in tooltipPoints)
             {
                 tooltipPoint.Point.AddToHoverState();
-                activePoints[tooltipPoint.Point] = o;
+                _activePoints[tooltipPoint.Point] = o;
             }
 
-            foreach (var key in activePoints.Keys.ToArray())
+            foreach (var key in _activePoints.Keys.ToArray())
             {
-                if (activePoints[key] == o) continue;
+                if (_activePoints[key] == o) continue;
                 key.RemoveFromHoverState();
-                _ = activePoints.Remove(key);
+                _ = _activePoints.Remove(key);
             }
+
+            _closeTimer.Stop();
+            _closeTimer.Start();
 
             chart.Canvas.Invalidate();
         }
@@ -170,19 +192,47 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <returns></returns>
         protected void BuildContent()
         {
-            var template = TooltipTemplate ?? defaultTemplate;
+            var template = TooltipTemplate ?? _defaultTemplate;
             if (template.CreateContent() is not View view) return;
 
             view.BindingContext = new TooltipBindingContext
             {
+                TooltipBackgroundColor = TooltipBackgroundColor,
                 Points = Points,
-                FontFamily = FontFamily,
-                FontSize = FontSize,
-                TextColor = TextColor,
-                FontAttributes = FontAttributes
+                FontFamily = TooltipFontFamily,
+                FontSize = TooltipFontSize,
+                TextColor = TooltipTextColor,
+                FontAttributes = TooltipFontAttributes
             };
 
             Content = view;
+        }
+
+        void IChartTooltip<SkiaSharpDrawingContext>.Hide()
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                AbsoluteLayout.SetLayoutBounds(
+                    this,
+                    new Rectangle(
+                        -1, -1,
+                        AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
+
+                foreach (var state in _chart.View.PointStates.GetStates())
+                {
+                    if (!state.IsHoverState) continue;
+                    if (state.Fill != null) state.Fill.ClearGeometriesFromPaintTask(_chart.Canvas);
+                    if (state.Stroke != null) state.Stroke.ClearGeometriesFromPaintTask(_chart.Canvas);
+                }
+
+                _chart.Update();
+            });
+        }
+
+        private void _closeTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            ((IChartTooltip<SkiaSharpDrawingContext>)this).Hide();
+            _closeTimer.Stop();
         }
     }
 }

@@ -27,7 +27,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:ctx="clr-namespace:LiveChartsCore.Kernel;assembly=LiveChartsCore"
+             xmlns:ctx="clr-namespace:LiveChartsCore;assembly=LiveChartsCore"
              xmlns:local="clr-namespace:LiveChartsCore.SkiaSharpView.WPF"
              mc:Ignorable="d"
              d:DesignHeight="100" d:DesignWidth="200">
@@ -37,8 +37,10 @@
             <ItemsControl ItemsSource="{Binding Series, RelativeSource={RelativeSource AncestorType=local:DefaultLegend}}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel HorizontalAlignment="Center" VerticalAlignment="Center" 
-                           Orientation="{Binding Orientation, RelativeSource={RelativeSource AncestorType=local:DefaultLegend}}" />
+                        <WrapPanel
+                            HorizontalAlignment="Center" VerticalAlignment="Center" 
+                            Orientation="{Binding Orientation, RelativeSource={RelativeSource AncestorType=local:DefaultLegend}}"
+                            Background="{Binding LegendBackground, RelativeSource={RelativeSource AncestorType=local:DefaultLegend}}"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -46,9 +48,9 @@
                         <Border Padding="15 4">
                             <StackPanel Orientation="Horizontal">
                                 <local:MotionCanvas Margin="0 0 8 0" 
-                                    PaintTasks="{Binding DefaultPaintContext.PaintTasks}"
-                                    Width="{Binding DefaultPaintContext.Width}"
-                                    Height="{Binding DefaultPaintContext.Height}"
+                                    PaintTasks="{Binding CanvasSchedule.PaintSchedules}"
+                                    Width="{Binding CanvasSchedule.Width}"
+                                    Height="{Binding CanvasSchedule.Height}"
                                     VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding Name}" 
                                     FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=local:DefaultLegend}}" 

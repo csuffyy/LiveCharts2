@@ -16,6 +16,9 @@
     <Compile Update="Axes\DateTimeScaled\View.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Update="Axes\Shared\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="Axes\Multiple\View.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -67,7 +70,13 @@
     <Compile Update="Design\LinearGradients\View.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Update="Financial\BasicCandleSticks\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="General\Animations\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="General\Sections\View.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="General\Visibility\View.cs">
@@ -94,6 +103,33 @@
     <Compile Update="General\NullPoints\View.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Update="Heat\Basic\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Scatter\Bubbles\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StackedArea\StepArea\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StepLines\Area\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StepLines\AutoUpdate\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StepLines\Basic\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StepLines\Custom\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StepLines\Properties\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StepLines\Zoom\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="Lines\Area\View.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -113,6 +149,12 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Pies\AutoUpdate\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Pies\Gauges\View.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Pies\Processing\View.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Pies\Pushout\View.cs">

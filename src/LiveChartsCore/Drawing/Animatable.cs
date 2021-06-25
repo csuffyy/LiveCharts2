@@ -43,8 +43,8 @@ namespace LiveChartsCore.Drawing.Common
         /// </summary>
         public Animatable() { }
 
-        /// <inheritdoc cref="IAnimatable.IsCompleted" />
-        bool IAnimatable.IsCompleted { get => _isCompleted; set => _isCompleted = value; }
+        /// <inheritdoc cref="IAnimatable.IsValid" />
+        bool IAnimatable.IsValid { get => _isCompleted; set => _isCompleted = value; }
 
         /// <inheritdoc cref="IAnimatable.CurrentTime" />
         long IAnimatable.CurrentTime { get => _currentTime; set => _currentTime = value; }
@@ -53,11 +53,13 @@ namespace LiveChartsCore.Drawing.Common
         public bool RemoveOnCompleted { get => _removeOnCompleted; set => _removeOnCompleted = value; }
 
         /// <inheritdoc cref="SetPropertiesTransitions(Animation, string[])" />
-        public void SetPropertiesTransitions(Animation animation, params string[] properties)
+        public void SetPropertiesTransitions(Animation? animation, params string[] properties)
         {
+            var a = animation?.Duration == 0 ? null : animation;
+
             foreach (var name in properties)
             {
-                transitionProperties[name].Animation = animation;
+                transitionProperties[name].Animation = a;
             }
         }
 
@@ -122,13 +124,13 @@ namespace LiveChartsCore.Drawing.Common
         /// Registers a motion property.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="transition">The transition.</param>
+        /// <param name="motionProperty">The transition.</param>
         /// <returns></returns>
-        protected T RegisterMotionProperty<T>(T transition)
+        protected T RegisterMotionProperty<T>(T motionProperty)
             where T : IMotionProperty
         {
-            transitionProperties[transition.PropertyName] = transition;
-            return transition;
+            transitionProperties[motionProperty.PropertyName] = motionProperty;
+            return motionProperty;
         }
 
         /// <summary>

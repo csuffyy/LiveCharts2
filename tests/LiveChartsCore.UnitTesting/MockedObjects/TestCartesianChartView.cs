@@ -1,5 +1,7 @@
 ﻿using LiveChartsCore.Drawing;
 using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Events;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Drawing;
@@ -24,6 +26,8 @@ namespace LiveChartsCore.UnitTesting.MockedObjects
             Core = new CartesianChart<SkiaSharpDrawingContext>(
                 this, LiveChartsSkiaSharp.DefaultPlatformBuilder, CoreCanvas);
         }
+
+        IChart IChartView.CoreChart => Core;
 
         public CartesianChart<SkiaSharpDrawingContext> Core { get; }
 
@@ -62,10 +66,31 @@ namespace LiveChartsCore.UnitTesting.MockedObjects
         public TooltipFindingStrategy TooltipFindingStrategy { get; set; }
 
         public Color BackColor { get; set; }
+        public bool AutoUpdateEnaled { get; set; } = true;
+        public TimeSpan UpdaterThrottler { get; set; }
+        public DrawMarginFrame<SkiaSharpDrawingContext> DrawMarginFrame { get; set; }
+        public IEnumerable<Section<SkiaSharpDrawingContext>> Sections { get; set; }
+
+        public event ChartEventHandler<SkiaSharpDrawingContext> Measuring;
+        public event ChartEventHandler<SkiaSharpDrawingContext> UpdateStarted;
+        public event ChartEventHandler<SkiaSharpDrawingContext> UpdateFinished;
+
+        public void DummyRaiseEvents()
+        {
+            Measuring?.Invoke(this);
+            UpdateStarted?.Invoke(this);
+            UpdateFinished?.Invoke(this);
+        }
+
+        public void HideTooltip() { }
 
         public PointF ScaleUIPoint(PointF point, int xAxisIndex = 0, int yAxisIndex = 0)
         {
             return new PointF();
         }
+
+        public void ShowTooltip(IEnumerable<TooltipPoint> points) { }
+
+        public void SetTooltipStyle(Color background, Color textColor) { }
     }
 }

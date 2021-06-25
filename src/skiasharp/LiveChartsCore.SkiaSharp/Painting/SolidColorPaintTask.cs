@@ -23,27 +23,24 @@
 using LiveChartsCore.Drawing;
 using LiveChartsCore.Motion;
 using LiveChartsCore.SkiaSharpView.Drawing;
-using LiveChartsCore.SkiaSharpView.Painting.Effects;
 using SkiaSharp;
 using System.Drawing;
 
 namespace LiveChartsCore.SkiaSharpView.Painting
 {
     /// <summary>
-    /// Defines a set of geometries that will be painted using a solid color.,
+    /// Defines a set of geometries that will be painted using a solid color.
     /// </summary>
     /// <seealso cref="PaintTask" />
     public class SolidColorPaintTask : PaintTask
     {
-        private readonly FloatMotionProperty _strokeMiterTransition;
-        private SkiaSharpDrawingContext _drawingContext;
+        private SkiaSharpDrawingContext? _drawingContext;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SolidColorPaintTask"/> class.
         /// </summary>
         public SolidColorPaintTask()
         {
-            _strokeMiterTransition = RegisterMotionProperty(new FloatMotionProperty(nameof(StrokeMiter), 0f));
         }
 
         /// <summary>
@@ -53,7 +50,6 @@ namespace LiveChartsCore.SkiaSharpView.Painting
         public SolidColorPaintTask(SKColor color)
             : base(color)
         {
-            _strokeMiterTransition = RegisterMotionProperty(new FloatMotionProperty(nameof(StrokeMiter), 0f));
             Color = color;
         }
 
@@ -66,48 +62,12 @@ namespace LiveChartsCore.SkiaSharpView.Painting
             : base(color)
         {
             strokeWidthTransition = RegisterMotionProperty(new FloatMotionProperty(nameof(StrokeThickness), strokeWidth));
-            _strokeMiterTransition = RegisterMotionProperty(new FloatMotionProperty(nameof(StrokeMiter), 0f));
             Color = color;
         }
 
-        /// <summary>
-        /// Gets or sets the stroke cap.
-        /// </summary>
-        /// <value>
-        /// The stroke cap.
-        /// </value>
-        public SKStrokeCap StrokeCap { get; set; }
 
-        /// <summary>
-        /// Gets or sets the stroke join.
-        /// </summary>
-        /// <value>
-        /// The stroke join.
-        /// </value>
-        public SKStrokeJoin StrokeJoin { get; set; }
-
-        /// <summary>
-        /// Gets or sets the stroke miter.
-        /// </summary>
-        /// <value>
-        /// The stroke miter.
-        /// </value>
-        public float StrokeMiter
-        {
-            get => _strokeMiterTransition.GetMovement(this);
-            set => _strokeMiterTransition.SetMovement(value, this);
-        }
-
-        /// <summary>
-        /// Gets or sets the path effect.
-        /// </summary>
-        /// <value>
-        /// The path effect.
-        /// </value>
-        public PathEffect PathEffect { get; set; }
-
-        /// <inheritdoc cref="IDrawableTask{TDrawingContext}.CloneTask" />
-        public override IDrawableTask<SkiaSharpDrawingContext> CloneTask()
+        /// <inheritdoc cref="IPaintTask{TDrawingContext}.CloneTask" />
+        public override IPaintTask<SkiaSharpDrawingContext> CloneTask()
         {
             var clone = new SolidColorPaintTask
             {
@@ -116,16 +76,18 @@ namespace LiveChartsCore.SkiaSharpView.Painting
                 IsFill = IsFill,
                 Color = Color,
                 IsAntialias = IsAntialias,
+                StrokeThickness = StrokeThickness,
                 StrokeCap = StrokeCap,
                 StrokeJoin = StrokeJoin,
                 StrokeMiter = StrokeMiter,
-                StrokeThickness = StrokeThickness
+                PathEffect = PathEffect?.Clone(),
+                ImageFilter = ImageFilter?.Clone()
             };
 
             return clone;
         }
 
-        /// <inheritdoc cref="IDrawableTask{TDrawingContext}.InitializeTask(TDrawingContext)" />
+        /// <inheritdoc cref="IPaintTask{TDrawingContext}.InitializeTask(TDrawingContext)" />
         public override void InitializeTask(SkiaSharpDrawingContext drawingContext)
         {
             if (skiaPaint == null) skiaPaint = new SKPaint();
@@ -145,12 +107,17 @@ namespace LiveChartsCore.SkiaSharpView.Painting
                 skiaPaint.PathEffect = PathEffect.SKPathEffect;
             }
 
-            if (ClipRectangle != RectangleF.Empty)
+            if (ImageFilter != null)
+            {
+                ImageFilter.CreateFilter(drawingContext);
+                skiaPaint.ImageFilter = ImageFilter.SKImageFilter;
+            }
+
+            var clip = GetClipRectangle(drawingContext.MotionCanvas);
+            if (clip != RectangleF.Empty)
             {
                 _ = drawingContext.Canvas.Save();
-                drawingContext.Canvas.ClipRect(
-                    new SKRect(
-                        ClipRectangle.X, ClipRectangle.Y, ClipRectangle.X + ClipRectangle.Width, ClipRectangle.Y + ClipRectangle.Height));
+                drawingContext.Canvas.ClipRect(new SKRect(clip.X, clip.Y, clip.X + clip.Width, clip.Y + clip.Height));
                 _drawingContext = drawingContext;
             }
 
@@ -158,17 +125,22 @@ namespace LiveChartsCore.SkiaSharpView.Painting
             drawingContext.PaintTask = this;
         }
 
-        /// <inheritdoc cref="IDrawableTask{TDrawingContext}.SetOpacity(TDrawingContext, IGeometry{TDrawingContext})" />
+        /// <inheritdoc cref="IPaintTask{TDrawingContext}.SetOpacity(TDrawingContext, IGeometry{TDrawingContext})" />
         public override void SetOpacity(SkiaSharpDrawingContext context, IGeometry<SkiaSharpDrawingContext> geometry)
         {
+            if (context.PaintTask == null || context.Paint == null) return;
+
             var baseColor = context.PaintTask.Color;
             context.Paint.Color =
                 new SKColor(baseColor.Red, baseColor.Green, baseColor.Blue, unchecked((byte)(255 * geometry.Opacity)));
         }
 
-        /// <inheritdoc cref="IDrawableTask{TDrawingContext}.ResetOpacity(TDrawingContext, IGeometry{TDrawingContext})" />
+        /// <inheritdoc cref="IPaintTask{TDrawingContext}.ResetOpacity(TDrawingContext, IGeometry{TDrawingContext})" />
         public override void ResetOpacity(SkiaSharpDrawingContext context, IGeometry<SkiaSharpDrawingContext> geometry)
         {
+            if (context.PaintTask == null || context.Paint == null) return;
+            if (ImageFilter != null) ImageFilter.Dispose();
+
             var baseColor = context.PaintTask.Color;
             context.Paint.Color = baseColor;
         }
@@ -180,7 +152,7 @@ namespace LiveChartsCore.SkiaSharpView.Painting
         {
             if (PathEffect != null) PathEffect.Dispose();
 
-            if (ClipRectangle != RectangleF.Empty && _drawingContext != null)
+            if (_drawingContext != null && GetClipRectangle(_drawingContext.MotionCanvas) != RectangleF.Empty)
             {
                 _drawingContext.Canvas.Restore();
                 _drawingContext = null;

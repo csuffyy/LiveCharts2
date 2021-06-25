@@ -21,12 +21,13 @@
 // SOFTWARE.
 
 using LiveChartsCore.Drawing;
+using LiveChartsCore.Kernel.Sketches;
 using System;
 
 namespace LiveChartsCore.Kernel
 {
     /// <summary>
-    /// Defiens a series style rule.
+    /// Defines a series style rule.
     /// </summary>
     /// <typeparam name="TVisual">The type of the visual.</typeparam>
     /// <typeparam name="TDrawingContext">The type of the drawing context.</typeparam>
@@ -48,6 +49,6 @@ namespace LiveChartsCore.Kernel
         /// <value>
         /// The rule.
         /// </value>
-        public Action<IDrawableSeries<TDrawingContext>>? Rule { get; set; }
+        public Action<IChartSeries<TDrawingContext>>? Rule { get; set; }
     }
 }

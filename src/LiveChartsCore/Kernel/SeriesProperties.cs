@@ -48,28 +48,77 @@ namespace LiveChartsCore.Kernel
         /// </summary>
         Line = 1 << 3,
         /// <summary>
+        /// The stepline series
+        /// </summary>
+        StepLine = 1 << 4,
+        /// <summary>
         /// The scatter series
         /// </summary>
-        Scatter = 1 << 4,
+        Scatter = 1 << 5,
 
         /// <summary>
-        /// The pie series
+        /// The heat series.
         /// </summary>
-        PieSeries = 1 << 5,
+        Heat = 1 << 6,
+
+        /// <summary>
+        /// The financial series.
+        /// </summary>
+        Financial = 1 << 7,
+
+        /// <summary>
+        /// The pie series.
+        /// </summary>
+        PieSeries = 1 << 8,
 
         /// <summary>
         /// The stacked series
         /// </summary>
-        Stacked = 1 << 6,
+        Stacked = 1 << 9,
 
         /// <summary>
         /// The vertical orientation
         /// </summary>
-        VerticalOrientation = 1 << 7,
+        PrimaryAxisVerticalOrientation = 1 << 10,
 
         /// <summary>
         /// The horizontal orientation
         /// </summary>
-        HorizontalOrientation = 1 << 8
+        PrimaryAxisHorizontalOrientation = 1 << 11,
+
+        /// <summary>
+        /// The gauge.
+        /// </summary>
+        Gauge = 1 << 12,
+
+        /// <summary>
+        /// The gauge fill.
+        /// </summary>
+        GaugeFill = 1 << 13,
+
+        /// <summary>
+        /// The sketch
+        /// </summary>
+        Sketch = 1 << 14,
+
+        /// <summary>
+        /// The solid
+        /// </summary>
+        Solid = 1 << 15,
+
+        /// <summary>
+        /// The prefers x tool tips
+        /// </summary>
+        PrefersXStrategyTooltips = 1 << 16,
+
+        /// <summary>
+        /// The prefers y tool tips
+        /// </summary>
+        PrefersYStrategyTooltips = 1 << 17,
+
+        /// <summary>
+        /// The prefers xy tool tips
+        /// </summary>
+        PrefersXYStrategyTooltips = 1 << 18
     }
 }

@@ -41,6 +41,22 @@ namespace LiveChartsCore.Drawing
         Padding Padding { get; set; }
 
         /// <summary>
+        /// Gets or sets the vertical align.
+        /// </summary>
+        /// <value>
+        /// The vertical align.
+        /// </value>
+        Align VerticalAlign { get; set; }
+
+        /// <summary>
+        /// Gets or sets the horizontal align.
+        /// </summary>
+        /// <value>
+        /// The horizontal align.
+        /// </value>
+        Align HorizontalAlign { get; set; }
+
+        /// <summary>
         /// Gets or sets the text.
         /// </summary>
         /// <value>

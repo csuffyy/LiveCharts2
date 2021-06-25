@@ -83,7 +83,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The color of the tool tip text.
         /// </value>
-        Color TooltipTextColor { get; set; }
+        Color TooltipTextBrush { get; set; }
 
         /// <summary>
         /// Gets or sets the color of the tool tip background.
@@ -91,7 +91,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The color of the tool tip background.
         /// </value>
-        Color TooltipBackgroundColor { get; set; }
+        Color TooltipBackground { get; set; }
 
         /// <summary>
         /// Gets or sets the tool tip font attributes.
@@ -131,7 +131,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The color of the legend text.
         /// </value>
-        Color LegendTextColor { get; set; }
+        Color LegendTextBrush { get; set; }
 
         /// <summary>
         /// Gets or sets the color of the legend background.
@@ -139,7 +139,7 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// <value>
         /// The color of the legend background.
         /// </value>
-        Color LegendBackgroundColor { get; set; }
+        Color LegendBackground { get; set; }
 
         /// <summary>
         /// Gets or sets the legend font attributes.

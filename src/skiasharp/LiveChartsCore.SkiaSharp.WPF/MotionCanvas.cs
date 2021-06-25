@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 using LiveChartsCore.Drawing;
+using LiveChartsCore.Kernel;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
@@ -63,8 +64,8 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// </summary>
         public static readonly DependencyProperty PaintTasksProperty =
             DependencyProperty.Register(
-                nameof(PaintTasks), typeof(HashSet<IDrawableTask<SkiaSharpDrawingContext>>), typeof(MotionCanvas),
-                new PropertyMetadata(new HashSet<IDrawableTask<SkiaSharpDrawingContext>>(), new PropertyChangedCallback(OnPaintTaskChanged)));
+                nameof(PaintTasks), typeof(List<PaintSchedule<SkiaSharpDrawingContext>>), typeof(MotionCanvas),
+                new PropertyMetadata(new List<PaintSchedule<SkiaSharpDrawingContext>>(), new PropertyChangedCallback(OnPaintTaskChanged)));
 
         /// <summary>
         /// Gets or sets the paint tasks.
@@ -72,9 +73,9 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// <value>
         /// The paint tasks.
         /// </value>
-        public HashSet<IDrawableTask<SkiaSharpDrawingContext>> PaintTasks
+        public List<PaintSchedule<SkiaSharpDrawingContext>> PaintTasks
         {
-            get => (HashSet<IDrawableTask<SkiaSharpDrawingContext>>)GetValue(PaintTasksProperty);
+            get => (List<PaintSchedule<SkiaSharpDrawingContext>>)GetValue(PaintTasksProperty);
             set => SetValue(PaintTasksProperty, value);
         }
 
@@ -111,7 +112,22 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         /// <inheritdoc cref="OnPaintSurface(object?, SKPaintSurfaceEventArgs)" />
         protected virtual void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs args)
         {
-            CanvasCore.DrawFrame(new SkiaSharpDrawingContext(args.Info, args.Surface, args.Surface.Canvas));
+            (var dpiX, var dpiY) = GetPixelDensity();
+
+            args.Surface.Canvas.Scale(dpiX, dpiY);
+
+            CanvasCore.DrawFrame(new SkiaSharpDrawingContext(CanvasCore, args.Info, args.Surface, args.Surface.Canvas));
+        }
+
+        private (float dpiX, float dpiY) GetPixelDensity()
+        {
+            var presentationSource = PresentationSource.FromVisual(this);
+            if (presentationSource == null) return (1f, 1f);
+            var compositionTarget = presentationSource.CompositionTarget;
+            if (compositionTarget == null) return (1f, 1f);
+
+            var matrix = compositionTarget.TransformToDevice;
+            return ((float)matrix.M11, (float)matrix.M22);
         }
 
         private void OnCanvasCoreInvalidated(MotionCanvas<SkiaSharpDrawingContext> sender)
@@ -142,7 +158,16 @@ namespace LiveChartsCore.SkiaSharpView.WPF
         private static void OnPaintTaskChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
         {
             var motionCanvas = (MotionCanvas)sender;
-            motionCanvas.CanvasCore.SetPaintTasks(motionCanvas.PaintTasks);
+
+            var tasks = new HashSet<IPaintTask<SkiaSharpDrawingContext>>();
+
+            foreach (var item in motionCanvas.PaintTasks)
+            {
+                item.PaintTask.SetGeometries(motionCanvas.CanvasCore, item.Geometries);
+                _ = tasks.Add(item.PaintTask);
+            }
+
+            motionCanvas.CanvasCore.SetPaintTasks(tasks);
         }
     }
 }

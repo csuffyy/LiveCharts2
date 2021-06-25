@@ -1,4 +1,5 @@
 ﻿using LiveChartsCore.SkiaSharpView.WinForms;
+using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ViewModelsSamples.Bars.AutoUpdate;

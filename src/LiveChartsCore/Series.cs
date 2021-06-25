@@ -29,6 +29,9 @@ using System.Drawing;
 using LiveChartsCore.Measure;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Linq;
+using LiveChartsCore.Kernel.Data;
+using LiveChartsCore.Kernel.Sketches;
 
 namespace LiveChartsCore
 {
@@ -43,7 +46,7 @@ namespace LiveChartsCore
     /// <seealso cref="ISeries{TModel}" />
     /// <seealso cref="IDisposable" />
     /// <seealso cref="INotifyPropertyChanged" />
-    public abstract class Series<TModel, TVisual, TLabel, TDrawingContext> : ISeries, ISeries<TModel>, IDisposable, INotifyPropertyChanged
+    public abstract class Series<TModel, TVisual, TLabel, TDrawingContext> : ChartElement<TDrawingContext>, ISeries, ISeries<TModel>, INotifyPropertyChanged
         where TDrawingContext : DrawingContext
         where TVisual : class, IVisualChartPoint<TDrawingContext>, new()
         where TLabel : class, ILabelGeometry<TDrawingContext>, new()
@@ -77,9 +80,10 @@ namespace LiveChartsCore
         private string? _name;
         private Action<TModel, ChartPoint>? _mapping;
         private int _zIndex;
-        private Func<ChartPoint, string> _tooltipLabelFormatter = (point) => $"{point.Context.Series.Name} {point.PrimaryValue}";
-        private Func<ChartPoint, string> _dataLabelsFormatter = (point) => $"{point.PrimaryValue}";
+        private Func<TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>, string> _tooltipLabelFormatter = (point) => $"{point.Context.Series.Name} {point.PrimaryValue}";
+        private Func<TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>, string> _dataLabelsFormatter = (point) => $"{point.PrimaryValue}";
         private bool _isVisible = true;
+        private PointF _dataPadding = new(0.5f, 0.5f);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Series{TModel, TVisual, TLabel, TDrawingContext}"/> class.
@@ -134,20 +138,17 @@ namespace LiveChartsCore
         /// <summary>
         /// Occurs when an instance of <see cref="ChartPoint"/> is measured.
         /// </summary>
-        public event Action<TypedChartPoint<TVisual, TLabel, TDrawingContext>>? PointMeasured;
+        public event Action<TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>>? PointMeasured;
 
         /// <summary>
         /// Occurs when an instance of <see cref="ChartPoint"/> is created.
         /// </summary>
-        public event Action<TypedChartPoint<TVisual, TLabel, TDrawingContext>>? PointCreated;
+        public event Action<TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>>? PointCreated;
 
         /// <summary>
         /// Occurs when a property changes.
         /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
-
-        /// <inheritdoc cref="ISeries.Disposing" />
-        public event Action<ISeries>? Disposing;
 
         /// <summary>
         /// Gets or sets a delegate that will be called every time a <see cref="ChartPoint"/> instance
@@ -164,15 +165,27 @@ namespace LiveChartsCore
         /// <inheritdoc cref="ISeries.ZIndex" />
         public int ZIndex { get => _zIndex; set { _zIndex = value; OnPropertyChanged(); } }
 
-        /// <inheritdoc cref="ISeries.TooltipLabelFormatter" />
-        public Func<ChartPoint, string> TooltipLabelFormatter
+        /// <summary>
+        /// Gets or sets the tool tip label formatter, this function will build the label when a point in this series 
+        /// is shown inside a tool tip.
+        /// </summary>
+        /// <value>
+        /// The tool tip label formatter.
+        /// </value>
+        public Func<TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>, string> TooltipLabelFormatter
         {
             get => _tooltipLabelFormatter;
             set { _tooltipLabelFormatter = value; OnPropertyChanged(); }
         }
 
-        /// <inheritdoc cref="ISeries.DataLabelsFormatter" />
-        public Func<ChartPoint, string> DataLabelsFormatter
+        /// <summary>
+        /// Gets or sets the data label formatter, this function will build the label when a point in this series 
+        /// is shown as data label.
+        /// </summary>
+        /// <value>
+        /// The data label formatter.
+        /// </value>
+        public Func<TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>, string> DataLabelsFormatter
         {
             get => _dataLabelsFormatter;
             set { _dataLabelsFormatter = value; OnPropertyChanged(); }
@@ -189,6 +202,18 @@ namespace LiveChartsCore
                 OnPropertyChanged();
             }
         }
+
+        /// <inheritdoc cref="ISeries.DataPadding" />
+        public PointF DataPadding { get => _dataPadding; set { _dataPadding = value; OnPropertyChanged(); } }
+
+        /// <inheritdoc cref="ISeries.AnimationsSpeed" />
+        public TimeSpan? AnimationsSpeed { get; set; }
+
+        /// <inheritdoc cref="ISeries.EasingFunction" />
+        public Func<float, float>? EasingFunction { get; set; }
+
+        /// <inheritdoc cref="ISeries.IsNotifyingChanges"/>
+        bool ISeries.IsNotifyingChanges { get; set; }
 
         /// <inheritdoc />
         public virtual int GetStackGroup()
@@ -209,16 +234,19 @@ namespace LiveChartsCore
             return Fetch(chart);
         }
 
-        IEnumerable<TooltipPoint> ISeries.FindPointsNearTo(IChart chart, PointF pointerPosition)
+        IEnumerable<TooltipPoint> ISeries.FindPointsNearTo(IChart chart, PointF pointerPosition, TooltipFindingStrategy automaticStategy)
         {
-            return FilterTooltipPoints(Fetch(chart), chart, pointerPosition);
+            return this is IPieSeries<TDrawingContext> pieSeries && pieSeries.IsFillSeries
+                ? Enumerable.Empty<TooltipPoint>()
+                : FilterTooltipPoints(Fetch(chart), chart, pointerPosition, automaticStategy);
         }
 
-        /// <inheritdoc />
+        /// <inheritdoc cref="ISeries.AddPointToState(ChartPoint, string)" />
         public void AddPointToState(ChartPoint chartPoint, string state)
         {
             var chart = (IChartView<TDrawingContext>)chartPoint.Context.Chart;
-            if (chart.PointStates == null) return;
+            if (chart.PointStates == null ||
+                (chart.TooltipPosition == TooltipPosition.Hidden && state == HoverState)) return;
 
             var s = chart.PointStates[state];
 
@@ -226,9 +254,6 @@ namespace LiveChartsCore
                 throw new Exception($"The state '{state}' was not found");
 
             if (chartPoint.Context.Visual == null) return;
-            //throw new Exception(
-            //    $"The {nameof(IChartPoint)}.{nameof(IChartPoint.Context)}.{nameof(IChartPoint.Context.Visual)} property is null, " +
-            //    $"this is probably due the point was not measured yet.");
 
             var visual = (TVisual)chartPoint.Context.Visual;
             var highlitable = visual.HighlightableGeometry;
@@ -241,11 +266,25 @@ namespace LiveChartsCore
 
             OnAddedToState(visual, chart);
 
-            if (s.Fill != null) s.Fill.AddGeometyToPaintTask(highlitable);
-            if (s.Stroke != null) s.Stroke.AddGeometyToPaintTask(highlitable);
+            var core = (Chart<TDrawingContext>)chartPoint.Context.Chart.CoreChart;
+
+            if (s.Fill != null)
+            {
+                s.Fill.SetClipRectangle(
+                    core.Canvas,
+                    new RectangleF(core.DrawMarginLocation, core.DrawMarginSize));
+                s.Fill.AddGeometryToPaintTask(chart.CoreCanvas, highlitable);
+            }
+            if (s.Stroke != null)
+            {
+                s.Stroke.SetClipRectangle(
+                    core.Canvas,
+                    new RectangleF(core.DrawMarginLocation, core.DrawMarginSize));
+                s.Stroke.AddGeometryToPaintTask(chart.CoreCanvas, highlitable);
+            }
         }
 
-        /// <inheritdoc />
+        /// <inheritdoc cref="ISeries.RemovePointFromState(ChartPoint, string)" />
         public virtual void RemovePointFromState(ChartPoint chartPoint, string state)
         {
             var chart = (IChartView<TDrawingContext>)chartPoint.Context.Chart;
@@ -255,9 +294,6 @@ namespace LiveChartsCore
                 throw new Exception($"The state '{state}' was not found");
 
             if (chartPoint.Context.Visual == null) return;
-            //throw new Exception(
-            //    $"The {nameof(IChartPoint)}.{nameof(IChartPoint.Context)}.{nameof(IChartPoint.Context.Visual)} property is null, " +
-            //    $"this is probably due the point was not measured yet.");
 
             var visual = (TVisual)chartPoint.Context.Visual;
             var highlitable = visual.HighlightableGeometry;
@@ -270,8 +306,8 @@ namespace LiveChartsCore
 
             OnRemovedFromState(visual, chart);
 
-            if (s.Fill != null) s.Fill.RemoveGeometryFromPainTask(highlitable);
-            if (s.Stroke != null) s.Stroke.RemoveGeometryFromPainTask(highlitable);
+            if (s.Fill != null) s.Fill.RemoveGeometryFromPainTask(chart.CoreCanvas, highlitable);
+            if (s.Stroke != null) s.Stroke.RemoveGeometryFromPainTask(chart.CoreCanvas, highlitable);
         }
 
         /// <inheritdoc cref="ISeries.RestartAnimations"/>
@@ -281,16 +317,20 @@ namespace LiveChartsCore
             dataProvider.RestartVisuals();
         }
 
-        /// <inheritdoc cref="ISeries.Delete"/>
-        public virtual void Delete(IChartView chart) { }
-
-        /// <inheritdoc cref="IDisposable.Dispose"/>
-        public virtual void Dispose()
+        /// <inheritdoc cref="ISeries.GetTooltipText(ChartPoint)"/>
+        public string GetTooltipText(ChartPoint point)
         {
-            Disposing?.Invoke(this);
-            foreach (var chart in subscribedTo) Delete(chart.View);
-            _observer.Dispose(_values);
+            return TooltipLabelFormatter(new TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>(point));
         }
+
+        /// <inheritdoc cref="ISeries.GetDataLabelText(ChartPoint)"/>
+        public string GetDataLabelText(ChartPoint point)
+        {
+            return DataLabelsFormatter(new TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>(point));
+        }
+
+        /// <inheritdoc cref="ISeries.SoftDelete"/>
+        public abstract void SoftDelete(IChartView chart);
 
         /// <summary>
         /// Softs the delete point.
@@ -299,7 +339,7 @@ namespace LiveChartsCore
         /// <param name="primaryScale">The primary scale.</param>
         /// <param name="secondaryScale">The secondary scale.</param>
         /// <returns></returns>
-        protected virtual void SoftDeletePoint(ChartPoint point, Scaler primaryScale, Scaler secondaryScale) { }
+        protected abstract void SoftDeletePoint(ChartPoint point, Scaler primaryScale, Scaler secondaryScale);
 
         /// <summary>
         /// Called when a point was measured.
@@ -307,7 +347,7 @@ namespace LiveChartsCore
         /// <param name="chartPoint">The chart point.</param>
         protected virtual void OnPointMeasured(ChartPoint chartPoint)
         {
-            PointMeasured?.Invoke(new TypedChartPoint<TVisual, TLabel, TDrawingContext>(chartPoint));
+            PointMeasured?.Invoke(new TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>(chartPoint));
         }
 
         /// <summary>
@@ -317,7 +357,7 @@ namespace LiveChartsCore
         protected virtual void OnPointCreated(ChartPoint chartPoint)
         {
             SetDefaultPointTransitions(chartPoint);
-            PointCreated?.Invoke(new TypedChartPoint<TVisual, TLabel, TDrawingContext>(chartPoint));
+            PointCreated?.Invoke(new TypedChartPoint<TModel, TVisual, TLabel, TDrawingContext>(chartPoint));
         }
 
         /// <summary>
@@ -348,80 +388,18 @@ namespace LiveChartsCore
         }
 
         /// <summary>
-        /// Defines de default behaviour when a point is added to a state.
+        /// Defines the default behavior when a point is added to a state.
         /// </summary>
         /// <param name="visual">The visual.</param>
         /// <param name="chart">The chart.</param>
         protected virtual void DefaultOnPointAddedToSate(TVisual visual, IChartView<TDrawingContext> chart) { }
 
         /// <summary>
-        /// Defines the default behavious when a point is remvoed from a state.
+        /// Defines the default behavior when a point is removed from a state.
         /// </summary>
         /// <param name="visual">The visual.</param>
         /// <param name="chart">The chart.</param>
         protected virtual void DefaultOnRemovedFromState(TVisual visual, IChartView<TDrawingContext> chart) { }
-
-        /// <summary>
-        /// Gets the label position.
-        /// </summary>
-        /// <param name="x">The x.</param>
-        /// <param name="y">The y.</param>
-        /// <param name="width">The width.</param>
-        /// <param name="height">The height.</param>
-        /// <param name="labelSize">Size of the label.</param>
-        /// <param name="position">The position.</param>
-        /// <param name="seriesProperties">The series properties.</param>
-        /// <param name="isGreaterThanPivot">if set to <c>true</c> [is greater than pivot].</param>
-        /// <returns></returns>
-        protected virtual PointF GetLabelPosition(
-            float x,
-            float y,
-            float width,
-            float height,
-            SizeF labelSize,
-            DataLabelsPosition position,
-            SeriesProperties seriesProperties,
-            bool isGreaterThanPivot)
-        {
-            var middleX = (x + x + width) * 0.5f;
-            var middleY = (y + y + height) * 0.5f;
-
-#pragma warning disable IDE0072 // Add missing cases
-            return position switch
-#pragma warning restore IDE0072 // Add missing cases
-            {
-                DataLabelsPosition.Top => new PointF(middleX, y - labelSize.Height * 0.5f),
-                DataLabelsPosition.Bottom => new PointF(middleX, y + height + labelSize.Height * 0.5f),
-                DataLabelsPosition.Left => new PointF(x - labelSize.Width * 0.5f, middleY),
-                DataLabelsPosition.Right => new PointF(x + width + labelSize.Width * 0.5f, middleY),
-                DataLabelsPosition.Middle => new PointF(middleX, middleY),
-                _ => (seriesProperties & SeriesProperties.HorizontalOrientation) == SeriesProperties.HorizontalOrientation
-#pragma warning disable IDE0072 // Add missing cases
-                    ? position switch
-#pragma warning restore IDE0072 // Add missing cases
-                    {
-                        DataLabelsPosition.End => isGreaterThanPivot
-                            ? new PointF(x + width + labelSize.Width * 0.5f, middleY)
-                            : new PointF(x - labelSize.Width * 0.5f, middleY),
-                        DataLabelsPosition.Start => isGreaterThanPivot
-                            ? new PointF(x - labelSize.Width * 0.5f, middleY)
-                            : new PointF(x + width + labelSize.Width * 0.5f, middleY),
-                        _ => throw new NotImplementedException(),
-                    }
-#pragma warning disable IDE0072 // Add missing cases
-                    : position switch
-#pragma warning restore IDE0072 // Add missing cases
-                    {
-                        DataLabelsPosition.End => isGreaterThanPivot
-                            ? new PointF(middleX, y - labelSize.Height * 0.5f)
-                            : new PointF(middleX, y + height + labelSize.Height * 0.5f),
-                        DataLabelsPosition.Start => isGreaterThanPivot
-                            ? new PointF(middleX, y + height + labelSize.Height * 0.5f)
-                            : new PointF(middleX, y - labelSize.Height * 0.5f),
-                        _ => throw new NotImplementedException(),
-                    }
-            };
-        }
 
         /// <summary>
         /// Called when a property changed.
@@ -430,21 +408,65 @@ namespace LiveChartsCore
         /// <returns></returns>
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
+            if (!((ISeries)this).IsNotifyingChanges) return;
+            NotifySubscribers();
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         private IEnumerable<TooltipPoint> FilterTooltipPoints(
-            IEnumerable<ChartPoint>? points, IChart chart, PointF pointerPosition)
+            IEnumerable<ChartPoint>? points, IChart chart, PointF pointerPosition, TooltipFindingStrategy automaticStategy)
         {
-            if (points == null) yield break;
+            if (points == null) return Enumerable.Empty<TooltipPoint>();
+            var tolerance = float.MaxValue;
+
+            if (this is ICartesianSeries<TDrawingContext> cartesianSeries)
+            {
+                var cartesianChart = (CartesianChart<TDrawingContext>)chart;
+                var drawLocation = cartesianChart.DrawMarginLocation;
+                var drawMarginSize = cartesianChart.DrawMarginSize;
+                var x = cartesianChart.XAxes[cartesianSeries.ScalesXAt];
+                var y = cartesianChart.YAxes[cartesianSeries.ScalesYAt];
+                var xScale = new Scaler(drawLocation, drawMarginSize, x);
+                var yScale = new Scaler(drawLocation, drawMarginSize, y);
+                var uwx = xScale.ToPixels((float)x.UnitWidth) - xScale.ToPixels(0);
+                var uwy = yScale.ToPixels((float)y.UnitWidth) - yScale.ToPixels(0);
+
+                switch (chart.TooltipFindingStrategy)
+                {
+                    case TooltipFindingStrategy.CompareAll:
+                        tolerance = (float)Math.Sqrt(Math.Pow(uwx, 2) + Math.Pow(uwy, 2));
+                        break;
+                    case TooltipFindingStrategy.CompareOnlyX:
+                        tolerance = Math.Abs(uwx);
+                        break;
+                    case TooltipFindingStrategy.CompareOnlyY:
+                        tolerance = Math.Abs(uwy);
+                        break;
+                    case TooltipFindingStrategy.Automatic:
+                    default:
+                        break;
+                }
+            }
+
+            var minD = new Tuple<float, List<TooltipPoint>>(10000, new List<TooltipPoint>());
 
             foreach (var point in points)
             {
                 if (point == null || point.Context.HoverArea == null) continue;
-                if (!point.Context.HoverArea.IsTriggerBy(pointerPosition, chart.TooltipFindingStrategy)) continue;
+                var d = point.Context.HoverArea.GetDistanceToPoint(pointerPosition, automaticStategy); //chart.TooltipFindingStrategy
+                if (d > tolerance || d > minD.Item1) continue;
 
-                yield return new TooltipPoint(this, point);
+                if (minD.Item1 == d)
+                {
+                    // in case of a tie, we add a new point to the same result
+                    minD.Item2.Add(new TooltipPoint(this, point));
+                    continue;
+                }
+
+                minD = new Tuple<float, List<TooltipPoint>>(d, new List<TooltipPoint> { new TooltipPoint(this, point) });
             }
+
+            return minD.Item2;
         }
 
         private void NotifySubscribers()

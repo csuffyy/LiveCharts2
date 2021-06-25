@@ -43,7 +43,22 @@ namespace LiveChartsCore.SkiaSharpView.Painting.Effects
             _phase = phase;
         }
 
-        /// <inheritdoc cref="CreateEffect(SkiaSharpDrawingContext)"/>
+        /// <summary>
+        /// Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        /// <exception cref="System.NotImplementedException"></exception>
+        public override PathEffect Clone()
+        {
+            return new DashEffect(_dashArray, _phase);
+        }
+
+        /// <summary>
+        /// Creates the path effect.
+        /// </summary>
+        /// <param name="drawingContext">The drawing context.</param>
         public override void CreateEffect(SkiaSharpDrawingContext drawingContext)
         {
             SKPathEffect = SKPathEffect.CreateDash(_dashArray, _phase);

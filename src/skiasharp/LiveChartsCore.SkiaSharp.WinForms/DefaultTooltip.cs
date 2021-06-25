@@ -1,4 +1,27 @@
-﻿using LiveChartsCore.Kernel;
+﻿// The MIT License(MIT)
+//
+// Copyright(c) 2021 Alberto Rodriguez Orozco & LiveCharts Contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 using LiveChartsCore.SkiaSharpView.Drawing;
 using System;
 using System.Collections.Generic;
@@ -11,7 +34,7 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
     /// <inheritdoc cref="IChartTooltip{TDrawingContext}" />
     public partial class DefaultTooltip : Form, IChartTooltip<SkiaSharpDrawingContext>, IDisposable
     {
-        private readonly Dictionary<ChartPoint, object> activePoints = new();
+        private readonly Dictionary<ChartPoint, object> _activePoints = new();
         private const int CS_DROPSHADOW = 0x00020000;
 
         /// <summary>
@@ -29,14 +52,16 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
 
             if (!tooltipPoints.Any())
             {
-                foreach (var key in activePoints.Keys.ToArray())
+                foreach (var key in _activePoints.Keys.ToArray())
                 {
                     key.RemoveFromHoverState();
-                    _ = activePoints.Remove(key);
+                    _ = _activePoints.Remove(key);
                 }
 
                 return;
             }
+
+            if (_activePoints.Count > 0 && tooltipPoints.All(x => _activePoints.ContainsKey(x.Point))) return;
 
             var size = DrawAndMesure(tooltipPoints, wfChart);
             PointF? location = null;
@@ -44,7 +69,7 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
             if (chart is CartesianChart<SkiaSharpDrawingContext>)
             {
                 location = tooltipPoints.GetCartesianTooltipLocation(
-                    chart.TooltipPosition, new SizeF((float)size.Width, (float)size.Height));
+                    chart.TooltipPosition, new SizeF((float)size.Width, (float)size.Height), chart.ControlSize);
             }
             if (chart is PieChart<SkiaSharpDrawingContext>)
             {
@@ -67,14 +92,14 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
             foreach (var tooltipPoint in tooltipPoints)
             {
                 tooltipPoint.Point.AddToHoverState();
-                activePoints[tooltipPoint.Point] = o;
+                _activePoints[tooltipPoint.Point] = o;
             }
 
-            foreach (var key in activePoints.Keys.ToArray())
+            foreach (var key in _activePoints.Keys.ToArray())
             {
-                if (activePoints[key] == o) continue;
+                if (_activePoints[key] == o) continue;
                 key.RemoveFromHoverState();
-                _ = activePoints.Remove(key);
+                _ = _activePoints.Remove(key);
             }
 
             wfChart.CoreCanvas.Invalidate();
@@ -94,23 +119,25 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
                 var text = point.Point.AsTooltipString;
                 var size = g.MeasureString(text, chart.TooltipFont);
 
-                var drawableSeries = (IDrawableSeries<SkiaSharpDrawingContext>)point.Series;
+                var drawableSeries = (IChartSeries<SkiaSharpDrawingContext>)point.Series;
 
                 Controls.Add(new MotionCanvas
                 {
                     Location = new Point(6, (int)h + 6),
-                    PaintTasks = drawableSeries.DefaultPaintContext.PaintTasks,
-                    Width = (int)drawableSeries.DefaultPaintContext.Width,
-                    Height = (int)drawableSeries.DefaultPaintContext.Height
+                    PaintTasks = drawableSeries.CanvasSchedule.PaintSchedules,
+                    Width = (int)drawableSeries.CanvasSchedule.Width,
+                    Height = (int)drawableSeries.CanvasSchedule.Height
                 });
                 Controls.Add(new Label
                 {
                     Text = text,
                     Font = chart.TooltipFont,
-                    Location = new Point(6 + (int)drawableSeries.DefaultPaintContext.Width + 6, (int)h + 6)
+                    ForeColor = chart.TooltipTextColor,
+                    Location = new Point(6 + (int)drawableSeries.CanvasSchedule.Width + 6, (int)h + 6),
+                    AutoSize = true
                 });
 
-                var thisW = size.Width + 18 + (int)drawableSeries.DefaultPaintContext.Width;
+                var thisW = size.Width + 18 + (int)drawableSeries.CanvasSchedule.Width;
                 h += size.Height + 6;
                 w = thisW > w ? thisW : w;
             }
@@ -119,6 +146,11 @@ namespace LiveChartsCore.SkiaSharpView.WinForms
 
             ResumeLayout();
             return new SizeF(w, h);
+        }
+
+        void IChartTooltip<SkiaSharpDrawingContext>.Hide()
+        {
+            Location = new Point(10000, 10000);
         }
 
         /// <summary>

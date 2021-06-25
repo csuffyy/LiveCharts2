@@ -24,6 +24,7 @@ using LiveChartsCore.Kernel;
 using LiveChartsCore.Drawing;
 using System;
 using System.Collections.Generic;
+using LiveChartsCore.Kernel.Sketches;
 
 namespace LiveChartsCore.Themes
 {
@@ -31,8 +32,7 @@ namespace LiveChartsCore.Themes
     /// Defines an object that must initialize live charts visual objects, this object defines how things will 
     /// be drawn by default, it is highly related to themes.
     /// </summary>
-    public class VisualsStyle<TDrawingContext>
-        where TDrawingContext : DrawingContext
+    public class VisualsStyle<TDrawingContext> where TDrawingContext : DrawingContext
     {
         /// <summary>
         /// Gets or sets the chart builder.
@@ -51,12 +51,20 @@ namespace LiveChartsCore.Themes
         public List<Action<IAxis<TDrawingContext>>> AxisBuilder { get; set; } = new List<Action<IAxis<TDrawingContext>>>();
 
         /// <summary>
+        /// Gets or sets the draw margin frame builder.
+        /// </summary>
+        /// <value>
+        /// The draw margin frame builder.
+        /// </value>
+        public List<Action<DrawMarginFrame<TDrawingContext>>> DrawMarginFrameBuilder { get; set; } = new List<Action<DrawMarginFrame<TDrawingContext>>>();
+
+        /// <summary>
         /// Gets or sets the series builder.
         /// </summary>
         /// <value>
         /// The pie series builder.
         /// </value>
-        public List<Action<IDrawableSeries<TDrawingContext>>> SeriesBuilder { get; set; } = new List<Action<IDrawableSeries<TDrawingContext>>>();
+        public List<Action<IChartSeries<TDrawingContext>>> SeriesBuilder { get; set; } = new List<Action<IChartSeries<TDrawingContext>>>();
 
         /// <summary>
         /// Gets or sets the pie series builder.
@@ -67,6 +75,22 @@ namespace LiveChartsCore.Themes
         public List<Action<IPieSeries<TDrawingContext>>> PieSeriesBuilder { get; set; } = new List<Action<IPieSeries<TDrawingContext>>>();
 
         /// <summary>
+        /// Gets or sets the gauge series builder.
+        /// </summary>
+        /// <value>
+        /// The pie series builder.
+        /// </value>
+        public List<Action<IPieSeries<TDrawingContext>>> GaugeSeriesBuilder { get; set; } = new List<Action<IPieSeries<TDrawingContext>>>();
+
+        /// <summary>
+        /// Gets or sets the gauge fill series builder.
+        /// </summary>
+        /// <value>
+        /// The pie series builder.
+        /// </value>
+        public List<Action<IPieSeries<TDrawingContext>>> GaugeFillSeriesBuilder { get; set; } = new List<Action<IPieSeries<TDrawingContext>>>();
+
+        /// <summary>
         /// Gets or sets the Cartesian series builder.
         /// </summary>
         /// <value>
@@ -75,12 +99,44 @@ namespace LiveChartsCore.Themes
         public List<Action<ICartesianSeries<TDrawingContext>>> CartesianSeriesBuilder { get; set; } = new List<Action<ICartesianSeries<TDrawingContext>>>();
 
         /// <summary>
+        /// Gets or sets the stepline series builder.
+        /// </summary>
+        /// <value>
+        /// The pie series builder.
+        /// </value>
+        public List<Action<IStepLineSeries<TDrawingContext>>> StepLineSeriesBuilder { get; set; } = new List<Action<IStepLineSeries<TDrawingContext>>>();
+
+        /// <summary>
+        /// Gets or sets the  stacked stepline series builder.
+        /// </summary>
+        /// <value>
+        /// The pie series builder.
+        /// </value>
+        public List<Action<IStepLineSeries<TDrawingContext>>> StackedStepLineSeriesBuilder { get; set; } = new List<Action<IStepLineSeries<TDrawingContext>>>();
+
+        /// <summary>
         /// Gets or sets the line series builder.
         /// </summary>
         /// <value>
         /// The pie series builder.
         /// </value>
         public List<Action<ILineSeries<TDrawingContext>>> LineSeriesBuilder { get; set; } = new List<Action<ILineSeries<TDrawingContext>>>();
+
+        /// <summary>
+        /// Gets or sets the line series builder.
+        /// </summary>
+        /// <value>
+        /// The pie series builder.
+        /// </value>
+        public List<Action<IHeatSeries<TDrawingContext>>> HeatSeriesBuilder { get; set; } = new List<Action<IHeatSeries<TDrawingContext>>>();
+
+        /// <summary>
+        /// Gets or sets the financial series builder.
+        /// </summary>
+        /// <value>
+        /// The pie series builder.
+        /// </value>
+        public List<Action<IFinancialSeries<TDrawingContext>>> FinancialSeriesBuilder { get; set; } = new List<Action<IFinancialSeries<TDrawingContext>>>();
 
         /// <summary>
         /// Gets or sets the stacked line series builder.
@@ -168,13 +224,27 @@ namespace LiveChartsCore.Themes
         /// Constructs a series.
         /// </summary>
         /// <param name="series">The series.</param>
-        public virtual void ApplyStyleToSeries(IDrawableSeries<TDrawingContext> series)
+        public virtual void ApplyStyleToSeries(IChartSeries<TDrawingContext> series)
         {
             foreach (var rule in SeriesBuilder) rule(series);
 
             if ((series.SeriesProperties & SeriesProperties.PieSeries) == SeriesProperties.PieSeries)
             {
-                foreach (var rule in PieSeriesBuilder) rule((IPieSeries<TDrawingContext>)series);
+                if ((series.SeriesProperties & SeriesProperties.Gauge) != 0)
+                {
+                    if ((series.SeriesProperties & SeriesProperties.GaugeFill) != 0)
+                    {
+                        foreach (var rule in GaugeFillSeriesBuilder) rule((IPieSeries<TDrawingContext>)series);
+                    }
+                    else
+                    {
+                        foreach (var rule in GaugeSeriesBuilder) rule((IPieSeries<TDrawingContext>)series);
+                    }
+                }
+                else
+                {
+                    foreach (var rule in PieSeriesBuilder) rule((IPieSeries<TDrawingContext>)series);
+                }
             }
 
             if ((series.SeriesProperties & SeriesProperties.CartesianSeries) == SeriesProperties.CartesianSeries)
@@ -188,12 +258,12 @@ namespace LiveChartsCore.Themes
                 var barSeries = (IBarSeries<TDrawingContext>)series;
                 foreach (var rule in BarSeriesBuilder) rule(barSeries);
 
-                if ((series.SeriesProperties & SeriesProperties.VerticalOrientation) == SeriesProperties.VerticalOrientation)
+                if ((series.SeriesProperties & SeriesProperties.PrimaryAxisVerticalOrientation) == SeriesProperties.PrimaryAxisVerticalOrientation)
                 {
                     foreach (var rule in ColumnSeriesBuilder) rule(barSeries);
                 }
 
-                if ((series.SeriesProperties & SeriesProperties.HorizontalOrientation) == SeriesProperties.HorizontalOrientation)
+                if ((series.SeriesProperties & SeriesProperties.PrimaryAxisHorizontalOrientation) == SeriesProperties.PrimaryAxisHorizontalOrientation)
                 {
                     foreach (var rule in RowSeriesBuilder) rule(barSeries);
                 }
@@ -205,12 +275,12 @@ namespace LiveChartsCore.Themes
                 var stackedBarSeries = (IStackedBarSeries<TDrawingContext>)series;
                 foreach (var rule in StackedBarSeriesBuilder) rule(stackedBarSeries);
 
-                if ((series.SeriesProperties & SeriesProperties.VerticalOrientation) == SeriesProperties.VerticalOrientation)
+                if ((series.SeriesProperties & SeriesProperties.PrimaryAxisVerticalOrientation) == SeriesProperties.PrimaryAxisVerticalOrientation)
                 {
                     foreach (var rule in StackedColumnSeriesBuilder) rule(stackedBarSeries);
                 }
 
-                if ((series.SeriesProperties & SeriesProperties.HorizontalOrientation) == SeriesProperties.HorizontalOrientation)
+                if ((series.SeriesProperties & SeriesProperties.PrimaryAxisHorizontalOrientation) == SeriesProperties.PrimaryAxisHorizontalOrientation)
                 {
                     foreach (var rule in StackedRowSeriesBuilder) rule(stackedBarSeries);
                 }
@@ -219,6 +289,17 @@ namespace LiveChartsCore.Themes
             if ((series.SeriesProperties & SeriesProperties.Scatter) == SeriesProperties.Scatter)
             {
                 foreach (var rule in ScatterSeriesBuilder) rule((IScatterSeries<TDrawingContext>)series);
+            }
+
+            if ((series.SeriesProperties & SeriesProperties.StepLine) == SeriesProperties.StepLine)
+            {
+                var stepSeries = (IStepLineSeries<TDrawingContext>)series;
+                foreach (var rule in StepLineSeriesBuilder) rule(stepSeries);
+
+                if ((series.SeriesProperties & SeriesProperties.Stacked) == SeriesProperties.Stacked)
+                {
+                    foreach (var rule in StackedStepLineSeriesBuilder) rule(stepSeries);
+                }
             }
 
             if ((series.SeriesProperties & SeriesProperties.Line) == SeriesProperties.Line)
@@ -230,6 +311,18 @@ namespace LiveChartsCore.Themes
                 {
                     foreach (var rule in StackedLineSeriesBuilder) rule(lineSeries);
                 }
+            }
+
+            if ((series.SeriesProperties & SeriesProperties.Heat) == SeriesProperties.Heat)
+            {
+                var heatSeries = (IHeatSeries<TDrawingContext>)series;
+                foreach (var rule in HeatSeriesBuilder) rule(heatSeries);
+            }
+
+            if ((series.SeriesProperties & SeriesProperties.Financial) == SeriesProperties.Financial)
+            {
+                var financialSeries = (IFinancialSeries<TDrawingContext>)series;
+                foreach (var rule in FinancialSeriesBuilder) rule(financialSeries);
             }
         }
     }

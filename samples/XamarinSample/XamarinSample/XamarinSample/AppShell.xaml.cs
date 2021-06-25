@@ -7,8 +7,8 @@ namespace XamarinSample
 {
     public partial class AppShell : Shell
     {
-        private bool isLoaded = false;
-        private Dictionary<string, string> routesSamples = new Dictionary<string, string>();
+        private bool _isLoaded = false;
+        private readonly Dictionary<string, string> _routesSamples = new Dictionary<string, string>();
 
         public AppShell()
         {
@@ -18,8 +18,8 @@ namespace XamarinSample
 
         private void AppShell_SizeChanged(object sender, EventArgs e)
         {
-            if (isLoaded) return;
-            isLoaded = true;
+            if (_isLoaded) return;
+            _isLoaded = true;
 
             var samples = ViewModelsSamples.Index.Samples;
 
@@ -32,15 +32,27 @@ namespace XamarinSample
 
                 var shell_section = new ShellSection { Title = item };
 
-                var content = new ShellContent()
+                ShellContent content;
+
+                try
                 {
-                    Content = i == 0 ? Activator.CreateInstance(t) : null
-                };
+                    content = new ShellContent()
+                    {
+                        Content = i == 0 ? Activator.CreateInstance(t) : null
+                    };
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+
                 shell_section.Items.Add(content);
 
                 Items.Add(shell_section);
-                routesSamples.Add("//" + content.Route, item);
+                _routesSamples.Add("//" + content.Route, item);
                 i++;
+
+                //if (i > 4) break;
             }
 
             Navigating += AppShell_Navigating;
@@ -52,7 +64,7 @@ namespace XamarinSample
             var r = shell.Items.Select(x => x.CurrentItem.CurrentItem.Route).ToArray();
             var next = Items.FirstOrDefault(x => "//" + x.CurrentItem.CurrentItem.Route == e.Target.Location.OriginalString);
 
-            var item = routesSamples[e.Target.Location.OriginalString];
+            var item = _routesSamples[e.Target.Location.OriginalString];
             var t = Type.GetType($"XamarinSample.{item.Replace('/', '.')}.View");
             var i = Activator.CreateInstance(t);
             var c = next.Items[0].Items[0];

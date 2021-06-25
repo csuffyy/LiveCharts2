@@ -20,10 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using LiveChartsCore.Kernel.Sketches;
+
 namespace LiveChartsCore.Kernel
 {
     /// <summary>
-    /// Defiens a point in a chart.
+    /// Defines a point in a chart.
     /// </summary>
     public class ChartPoint
     {
@@ -70,12 +72,28 @@ namespace LiveChartsCore.Kernel
         public float TertiaryValue { get; set; }
 
         /// <summary>
+        /// Gets or sets the quaternary value.
+        /// </summary>
+        /// <value>
+        /// The quaternary value.
+        /// </value>
+        public float QuaternaryValue { get; set; }
+
+        /// <summary>
+        /// Gets or sets the quinary value.
+        /// </summary>
+        /// <value>
+        /// The quinary value.
+        /// </value>
+        public float QuinaryValue { get; set; }
+
+        /// <summary>
         /// Gets the point as tooltip string.
         /// </summary>
         /// <value>
         /// As tooltip string.
         /// </value>
-        public string AsTooltipString => Context.Series.TooltipLabelFormatter(this);
+        public string AsTooltipString => Context.Series.GetTooltipText(this);
 
         /// <summary>
         /// Gets the point as data label.
@@ -83,7 +101,7 @@ namespace LiveChartsCore.Kernel
         /// <value>
         /// As tooltip string.
         /// </value>
-        public string AsDataLabel => Context.Series.DataLabelsFormatter(this);
+        public string AsDataLabel => Context.Series.GetDataLabelText(this);
 
         /// <summary>
         /// Gets the context.

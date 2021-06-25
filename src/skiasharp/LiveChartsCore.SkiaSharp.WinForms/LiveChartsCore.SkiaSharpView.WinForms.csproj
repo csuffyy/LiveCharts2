@@ -2,15 +2,19 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net5.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <OutputType>Library</OutputType>
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
+    <TargetFrameworks>net462;netcoreapp3.0</TargetFrameworks>
+    <AssemblyName>LiveChartsCore.SkiaSharpView.WinForms</AssemblyName>
+    <RootNamespace>LiveChartsCore.SkiaSharpView.WinForms</RootNamespace>
+    <Version>2.0.0-beta.17</Version>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>C:\Users\Beto\source\repos\LiveCharts\src\skiasharp\LiveChartsCore.SkiaSharp.WinForms\LiveChartsCore.SkiaSharpView.WinForms.xml</DocumentationFile>
+  <PropertyGroup>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +23,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LiveChartsCore.SkiaSharp\LiveChartsCore.SkiaSharpView.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="images\icon.png" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>

@@ -22,7 +22,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using LiveChartsCore.Kernel;
 using Xamarin.Forms;
 
 namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
@@ -63,6 +62,14 @@ namespace LiveChartsCore.SkiaSharpView.Xamarin.Forms
         /// The color of the text.
         /// </value>
         public Color TextColor { get; set; }
+
+        /// <summary>
+        /// Gets or sets the color of the background.
+        /// </summary>
+        /// <value>
+        /// The color of the background.
+        /// </value>
+        public Color BackgroundColor { get; set; }
 
         /// <summary>
         /// Gets or sets the font attributes.

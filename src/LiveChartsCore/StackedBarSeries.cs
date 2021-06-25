@@ -22,7 +22,8 @@
 
 using LiveChartsCore.Kernel;
 using LiveChartsCore.Drawing;
-using System;
+using LiveChartsCore.Kernel.Sketches;
+using LiveChartsCore.Kernel.Drawing;
 
 namespace LiveChartsCore
 {
@@ -36,16 +37,11 @@ namespace LiveChartsCore
     /// <seealso cref="CartesianSeries{TModel, TVisual, TLabel, TDrawingContext}" />
     /// <seealso cref="IStackedBarSeries{TDrawingContext}" />
     public abstract class StackedBarSeries<TModel, TVisual, TLabel, TDrawingContext>
-        : CartesianSeries<TModel, TVisual, TLabel, TDrawingContext>, IStackedBarSeries<TDrawingContext>
+        : StrokeAndFillCartesianSeries<TModel, TVisual, TLabel, TDrawingContext>, IStackedBarSeries<TDrawingContext>
         where TVisual : class, IRoundedRectangleChartPoint<TDrawingContext>, new()
         where TDrawingContext : DrawingContext
         where TLabel : class, ILabelGeometry<TDrawingContext>, new()
     {
-        /// <summary>
-        /// The elastic function
-        /// </summary>
-        protected static Func<float, float> elasticFunction = EasingFunctions.BuildCustomElasticOut(1.5f, 0.60f);
-
         /// <summary>
         /// The stack group
         /// </summary>
@@ -61,20 +57,13 @@ namespace LiveChartsCore
             HoverState = LiveCharts.StackedBarSeriesHoverKey;
         }
 
-        /// <summary>
-        /// Gets or sets the stack group.
-        /// </summary>
-        /// <value>
-        /// The stack group.
-        /// </value>
+        /// <inheritdoc cref="IBarSeries{TDrawingContext}.GroupPadding"/>
+        public double GroupPadding { get; set; } = 10;
+
+        /// <inheritdoc cref="IStackedBarSeries{TDrawingContext}.StackGroup"/>
         public int StackGroup { get => stackGroup; set => stackGroup = value; }
 
-        /// <summary>
-        /// Gets or sets the maximum width of the bar.
-        /// </summary>
-        /// <value>
-        /// The maximum width of the bar.
-        /// </value>
+        /// <inheritdoc cref="IStackedBarSeries{TDrawingContext}.MaxBarWidth"/>
         public double MaxBarWidth { get; set; } = 50;
 
         /// <inheritdoc cref="IStackedBarSeries{TDrawingContext}.Rx"/>
@@ -86,9 +75,9 @@ namespace LiveChartsCore
         /// <summary>
         /// Called when the paint context changed.
         /// </summary>
-        protected override void OnPaintContextChanged()
+        protected override void OnSeriesMiniatureChanged()
         {
-            var context = new PaintContext<TDrawingContext>();
+            var context = new CanvasSchedule<TDrawingContext>();
 
             var w = LegendShapeSize;
             var sh = 0f;
@@ -105,22 +94,21 @@ namespace LiveChartsCore
                 sh = strokeClone.StrokeThickness;
                 strokeClone.ZIndex = 1;
                 w += 2 * strokeClone.StrokeThickness;
-                strokeClone.AddGeometyToPaintTask(visual);
-                _ = context.PaintTasks.Add(strokeClone);
+                context.PaintSchedules.Add(new PaintSchedule<TDrawingContext>(strokeClone, visual));
             }
 
             if (Fill != null)
             {
                 var fillClone = Fill.CloneTask();
                 var visual = new TVisual { X = sh, Y = sh, Height = (float)LegendShapeSize, Width = (float)LegendShapeSize };
-                fillClone.AddGeometyToPaintTask(visual);
-                _ = context.PaintTasks.Add(fillClone);
+                context.PaintSchedules.Add(new PaintSchedule<TDrawingContext>(fillClone, visual));
             }
 
             context.Width = w;
             context.Height = w;
 
-            paintContext = context;
+            canvaSchedule = context;
+            OnPropertyChanged(nameof(CanvasSchedule));
         }
 
         /// <summary>

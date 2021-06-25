@@ -25,7 +25,7 @@ using System;
 namespace LiveChartsCore.Drawing.Common
 {
     /// <summary>
-    /// The Transition builder class helps to build transitions using fluent synstax.
+    /// The Transition builder class helps to build transitions using fluent syntax.
     /// </summary>
     public class TransitionBuilder
     {
@@ -51,6 +51,7 @@ namespace LiveChartsCore.Drawing.Common
         public TransitionBuilder WithAnimation(Animation animation)
         {
             _target.SetPropertiesTransitions(animation, _properties);
+
             return this;
         }
 

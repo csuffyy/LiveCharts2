@@ -1,5 +1,4 @@
 ﻿using LiveChartsCore;
-using LiveChartsCore.Kernel;
 using LiveChartsCore.SkiaSharpView;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,7 +13,14 @@ namespace ViewModelsSamples.Axes.NamedLabels
             {
                 new ColumnSeries<int>
                 {
+                    Name = "Sales",
                     Values = new ObservableCollection<int> { 200, 558, 458, 249 },
+                },
+                new LineSeries<int>
+                {
+                    Name = "Projected",
+                    Values = new ObservableCollection<int> { 300, 450, 400, 280 },
+                    Fill = null
                 }
             };
 
@@ -31,7 +37,7 @@ namespace ViewModelsSamples.Axes.NamedLabels
             {
                 new Axis
                 {
-                    // Now the Y axis we will display it as currency
+                    // Now the Y axis we will display labels as currency
                     // LiveCharts provides some common formatters
                     // in this case we are using the currency formatter.
                     Labeler = Labelers.Currency

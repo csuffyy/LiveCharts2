@@ -35,22 +35,23 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
             var geometries = canvas.CountGeometries();
 
-            // on changing the fill task, the previouns instance should be removed.
+            // on changing the fill task, the previous instance should be removed.
             series.Fill = new SolidColorPaintTask();
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
@@ -81,13 +82,14 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
@@ -95,7 +97,7 @@ namespace LiveChartsCore.UnitTesting
 
             series.Stroke = new SolidColorPaintTask();
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
@@ -126,13 +128,14 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
@@ -141,7 +144,7 @@ namespace LiveChartsCore.UnitTesting
             series.GeometryFill = new SolidColorPaintTask();
             series.GeometryStroke = new SolidColorPaintTask();
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
@@ -171,24 +174,25 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
             var geometries = canvas.CountGeometries();
             seriesCollection.Add(new LineSeries<int> { Values = new List<int> { 1, 6, 4, 2 } });
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             seriesCollection.RemoveAt(0);
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
@@ -218,13 +222,14 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
@@ -235,7 +240,7 @@ namespace LiveChartsCore.UnitTesting
                 new LineSeries<int> { Values = new List<int> { 1, 6, 4, 2 } }
             };
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
@@ -266,21 +271,22 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
             var geometries = canvas.CountGeometries();
 
-            axis.TextBrush = new SolidColorPaintTask();
+            axis.LabelsPaint = new SolidColorPaintTask();
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
@@ -311,21 +317,22 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
             var geometries = canvas.CountGeometries();
 
-            axis.SeparatorsBrush = new SolidColorPaintTask();
+            axis.SeparatorsPaint = new SolidColorPaintTask();
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
@@ -354,13 +361,14 @@ namespace LiveChartsCore.UnitTesting
                 {
                     canvas.DrawFrame(
                         new SkiaSharpDrawingContext(
+                            canvas,
                             new SKImageInfo(100, 100),
                             SKSurface.CreateNull(100, 100),
                             new SKCanvas(new SKBitmap())));
                 }
             }
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             var drawables = canvas.DrawablesCount;
@@ -368,12 +376,108 @@ namespace LiveChartsCore.UnitTesting
 
             chart.XAxes = new[] { new Axis() };
 
-            chart.Core.Update(false);
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
             DrawChart();
 
             Assert.IsTrue(
                 drawables == canvas.DrawablesCount &&
                 geometries == canvas.CountGeometries());
         }
+
+        [TestMethod]
+        public void SectionBrushChanged()
+        {
+            var section = new RectangularSection
+            {
+                Fill = new SolidColorPaintTask()
+            };
+
+            var chart = new TestCartesianChartView
+            {
+                Series = new List<ISeries>
+                {
+                    new LineSeries<int> { Values = new List<int> { 1, 6, 4, 2 } },
+                },
+                XAxes = new[] { new Axis() },
+                YAxes = new[] { new Axis() },
+                Sections = new[] { section }
+            };
+
+            var canvas = chart.CoreCanvas;
+
+            void DrawChart()
+            {
+                while (!canvas.IsValid)
+                {
+                    canvas.DrawFrame(
+                        new SkiaSharpDrawingContext(
+                            canvas,
+                            new SKImageInfo(100, 100),
+                            SKSurface.CreateNull(100, 100),
+                            new SKCanvas(new SKBitmap())));
+                }
+            }
+
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
+            DrawChart();
+
+            var drawables = canvas.DrawablesCount;
+            var geometries = canvas.CountGeometries();
+
+            section.Fill = new SolidColorPaintTask();
+
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
+            DrawChart();
+
+            Assert.IsTrue(
+                drawables == canvas.DrawablesCount &&
+                geometries == canvas.CountGeometries());
+        }
+
+        [TestMethod]
+        public void SectionsInstanceChanged()
+        {
+            var chart = new TestCartesianChartView
+            {
+                Series = new List<ISeries>
+                {
+                    new LineSeries<int> { Values = new List<int> { 1, 6, 4, 2 } },
+                },
+                XAxes = new[] { new Axis() },
+                YAxes = new[] { new Axis() },
+                Sections = new[] { new RectangularSection() }
+            };
+
+            var canvas = chart.CoreCanvas;
+
+            void DrawChart()
+            {
+                while (!canvas.IsValid)
+                {
+                    canvas.DrawFrame(
+                        new SkiaSharpDrawingContext(
+                            canvas,
+                            new SKImageInfo(100, 100),
+                            SKSurface.CreateNull(100, 100),
+                            new SKCanvas(new SKBitmap())));
+                }
+            }
+
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
+            DrawChart();
+
+            var drawables = canvas.DrawablesCount;
+            var geometries = canvas.CountGeometries();
+
+            chart.Sections = new[] { new RectangularSection() };
+
+            chart.Core.Update(new ChartUpdateParams { Throttling = false });
+            DrawChart();
+
+            Assert.IsTrue(
+                drawables == canvas.DrawablesCount &&
+                geometries == canvas.CountGeometries());
+        }
+
     }
 }

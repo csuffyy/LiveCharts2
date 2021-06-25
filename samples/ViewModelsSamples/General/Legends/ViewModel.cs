@@ -1,4 +1,4 @@
-﻿using LiveChartsCore.Kernel;
+﻿using LiveChartsCore;
 using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView;
 using System.Collections.Generic;
@@ -17,14 +17,17 @@ namespace ViewModelsSamples.General.Legends
         {
             new ColumnSeries<double>
             {
+                Name = "Peru",
                 Values = new ObservableCollection<double> { 3, 7, 3,},
             },
             new ColumnSeries<double>
             {
+                Name = "Egypt",
                 Values = new ObservableCollection<double> { 5, 3, 2 },
             },
             new ColumnSeries<double>
             {
+                Name = "Portugal",
                 Values = new ObservableCollection<double> { 8, 2, 4 },
             }
         };

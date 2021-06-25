@@ -35,7 +35,7 @@ namespace LiveChartsCore.Drawing
         /// <value>
         ///   <c>true</c> if this instance is completed; otherwise, <c>false</c>.
         /// </value>
-        bool IsCompleted { get; set; }
+        bool IsValid { get; set; }
 
         /// <summary>
         /// Gets or sets the current time.
@@ -58,7 +58,7 @@ namespace LiveChartsCore.Drawing
         /// </summary>
         /// <param name="animation">The animation.</param>
         /// <param name="propertyName">Name of the property.</param>
-        void SetPropertiesTransitions(Animation animation, params string[] propertyName);
+        void SetPropertiesTransitions(Animation? animation, params string[] propertyName);
 
         /// <summary>
         /// Removes a property transition.

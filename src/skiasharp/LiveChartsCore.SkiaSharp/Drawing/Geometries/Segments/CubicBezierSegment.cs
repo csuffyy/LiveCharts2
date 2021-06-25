@@ -30,43 +30,43 @@ namespace LiveChartsCore.SkiaSharpView.Drawing.Geometries.Segments
     /// <inheritdoc cref="IBezierSegment{TPathContext}" />
     public class CubicBezierSegment : PathCommand, IBezierSegment<SKPath>
     {
-        private readonly FloatMotionProperty _x0Transition;
-        private readonly FloatMotionProperty _y0Transition;
-        private readonly FloatMotionProperty _x1Transition;
-        private readonly FloatMotionProperty _y1Transition;
-        private readonly FloatMotionProperty _x2Transition;
-        private readonly FloatMotionProperty _y2Transition;
+        private readonly FloatMotionProperty _x0Property;
+        private readonly FloatMotionProperty _y0Property;
+        private readonly FloatMotionProperty _x1Property;
+        private readonly FloatMotionProperty _y1Property;
+        private readonly FloatMotionProperty _x2Property;
+        private readonly FloatMotionProperty _y2Property;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CubicBezierSegment"/> class.
         /// </summary>
         public CubicBezierSegment()
         {
-            _x0Transition = RegisterMotionProperty(new FloatMotionProperty(nameof(X0), 0f));
-            _y0Transition = RegisterMotionProperty(new FloatMotionProperty(nameof(Y0), 0f));
-            _x1Transition = RegisterMotionProperty(new FloatMotionProperty(nameof(X1), 0f));
-            _y1Transition = RegisterMotionProperty(new FloatMotionProperty(nameof(Y1), 0f));
-            _x2Transition = RegisterMotionProperty(new FloatMotionProperty(nameof(X2), 0f));
-            _y2Transition = RegisterMotionProperty(new FloatMotionProperty(nameof(Y2), 0f));
+            _x0Property = RegisterMotionProperty(new FloatMotionProperty(nameof(X0), 0f));
+            _y0Property = RegisterMotionProperty(new FloatMotionProperty(nameof(Y0), 0f));
+            _x1Property = RegisterMotionProperty(new FloatMotionProperty(nameof(X1), 0f));
+            _y1Property = RegisterMotionProperty(new FloatMotionProperty(nameof(Y1), 0f));
+            _x2Property = RegisterMotionProperty(new FloatMotionProperty(nameof(X2), 0f));
+            _y2Property = RegisterMotionProperty(new FloatMotionProperty(nameof(Y2), 0f));
         }
 
         /// <inheritdoc cref="IAnimatableBezierSegment.X0" />
-        public float X0 { get => _x0Transition.GetMovement(this); set => _x0Transition.SetMovement(value, this); }
+        public float X0 { get => _x0Property.GetMovement(this); set => _x0Property.SetMovement(value, this); }
 
         /// <inheritdoc cref="IAnimatableBezierSegment.Y0" />
-        public float Y0 { get => _y0Transition.GetMovement(this); set => _y0Transition.SetMovement(value, this); }
+        public float Y0 { get => _y0Property.GetMovement(this); set => _y0Property.SetMovement(value, this); }
 
         /// <inheritdoc cref="IAnimatableBezierSegment.X1" />
-        public float X1 { get => _x1Transition.GetMovement(this); set => _x1Transition.SetMovement(value, this); }
+        public float X1 { get => _x1Property.GetMovement(this); set => _x1Property.SetMovement(value, this); }
 
         /// <inheritdoc cref="IAnimatableBezierSegment.Y1" />
-        public float Y1 { get => _y1Transition.GetMovement(this); set => _y1Transition.SetMovement(value, this); }
+        public float Y1 { get => _y1Property.GetMovement(this); set => _y1Property.SetMovement(value, this); }
 
         /// <inheritdoc cref="IAnimatableBezierSegment.X2" />
-        public float X2 { get => _x2Transition.GetMovement(this); set => _x2Transition.SetMovement(value, this); }
+        public float X2 { get => _x2Property.GetMovement(this); set => _x2Property.SetMovement(value, this); }
 
         /// <inheritdoc cref="IAnimatableBezierSegment.Y2" />
-        public float Y2 { get => _y2Transition.GetMovement(this); set => _y2Transition.SetMovement(value, this); }
+        public float Y2 { get => _y2Property.GetMovement(this); set => _y2Property.SetMovement(value, this); }
 
         /// <inheritdoc cref="IPathCommand{TPathContext}.Execute(TPathContext, long, Animatable)" />
         public override void Execute(SKPath path, long currentTime, Animatable pathGeometry)
